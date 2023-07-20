@@ -3,13 +3,14 @@ package app
 import (
 	"botserver/app/model"
 	"botserver/app/song"
+	"botserver/conf"
+	"botserver/pkg/untils"
 	"errors"
 	"fmt"
 	"github.com/bytedance/sonic"
 	"github.com/gookit/event"
 	"github.com/idodo/golang-bot/kaihela/api/base"
 	event2 "github.com/idodo/golang-bot/kaihela/api/base/event"
-	"github.com/idodo/golang-bot/kaihela/api/helper"
 	log "github.com/sirupsen/logrus"
 	"regexp"
 	"strings"
@@ -54,103 +55,48 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 			return err
 		}
 		msgEvent := &event2.MessageKMarkdownEvent{}
-		fmt.Sprintf("121212312321312312这是接收到的数据", msgEvent)
 		err = sonic.Unmarshal(data, msgEvent)
 		log.Infof("收到json事件:%+v", msgEvent)
 		if err != nil {
 			return err
 		}
-
-		client := helper.NewApiHelper("/v3/message/create", gte.Token, gte.BaseUrl, "", "")
 		if msgEvent.Author.Bot {
 			log.Info("机器人消息")
 			return nil
 		}
 
-		echoData := map[string]interface{}{
-			"type":       10,
-			"channel_id": msgEvent.TargetId,
-			"content": `[
-  {
-    "type": "card",
-    "theme": "secondary",
-    "size": "lg",
-    "modules": [
-      {
-        "type": "header",
-        "text": {
-          "type": "plain-text",
-          "content": "🌈🍅：语音频道点歌机器人！"
-        }
-      },
-      {
-        "type": "section",
-        "text": {
-          "type": "paragraph",
-          "cols": 3,
-          "fields": [
-            {
-              "type": "kmarkdown",
-              "content": "**指令**\n(font)/网易 { 歌曲名 } (font)[error]\n(font)/QQ(font)[success]"
-            },
-            {
-              "type": "kmarkdown",
-              "content": "**功能**\n(font)播放网易云音乐(font)[success]\n待完善"
-            },
-            {
-              "type": "kmarkdown",
-              "content": "**示例**\n/网易 乐鼓 (dj版)\n待完善"
-            }
-          ]
-        }
-      },
-      {
-        "type": "divider"
-      },
-      {
-        "type": "context",
-        "elements": [
-          {
-            "type": "plain-text",
-            "content": "大家好，我是专属陈宇晖的王君bot"
-          },
-          {
-            "type": "image",
-            "src": "https://img.kaiheila.cn/assets/2021-01/7kr4FkWpLV0ku0ku.jpeg"
-          },
-          {
-            "type": "image",
-            "src": "https://img.kaiheila.cn/assets/2021-01/7kr4FkWpLV0ku0ku.jpeg"
-          },
-          {
-            "type": "image",
-            "src": "https://img.kaiheila.cn/assets/2021-01/7kr4FkWpLV0ku0ku.jpeg"
-          }
-        ]
-      },
-      {
-        "type": "section",
-        "text": {
-          "type": "kmarkdown",
-          "content": "Version: v0.0.1"
-        }
-      }
-    ]
-  }
-]`,
+		helpCard := model.CardMessageCard{
+			Theme: model.CardThemeDanger,
+			Size:  model.CardSizeLg,
+			Modules: []interface{}{
+				&model.CardMessageHeader{Text: model.CardMessageElementText{
+					Content: "🌈帮助菜单 & help menu",
+					Emoji:   true,
+				}},
+				&model.CardMessageDivider{},
+				&model.CardMessageSection{
+					Text: model.CardMessageParagraph{
+						Cols: 3,
+						Fields: []interface{}{
+							model.CardMessageElementKMarkdown{Content: "**指令**\n(font)/网易 { 歌曲名 } (font)[error]\n(font)/QQ(font)[success]"},
+							model.CardMessageElementKMarkdown{Content: "**功能**\n(font)播放网易云音乐(font)[success]\n待完善"},
+							model.CardMessageElementKMarkdown{Content: "**示例**\n/网易 乐鼓 (dj版)\n待完善"},
+						},
+					},
+				},
+				&model.CardMessageDivider{},
+				&model.CardMessageSection{
+					Text: model.CardMessageElementKMarkdown{Content: "Version:" + "`" + conf.Version + "`"},
+				},
+			},
 		}
 
-		echoDataByte, err := sonic.Marshal(echoData)
+		helpCardMsg, err := model.CardMessage{&helpCard}.BuildMessage()
 		if err != nil {
-			return err
+			log.Error("编译信息时出错！", err)
 		}
 		if msgEvent.Content == "/帮助" {
-			resp, err := client.SetBody(echoDataByte).Post()
-			log.Info("发送Post请求:%s", client.String())
-			if err != nil {
-				return err
-			}
-			log.Infof("resp:%s", string(resp))
+			untils.SendMessage(10, msgEvent.TargetId, helpCardMsg, msgEvent.MsgId, "", "")
 		}
 		//当前bot的状态 播放音乐？当前播放的进度条？下一首预告？
 		//当前bot的状态 播放音乐？当前播放的进度条？下一首预告？结束
@@ -187,30 +133,15 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 					Content: songName,
 				},
 				Accessory: model.CardMessageElementImage{
-					Src:  songPic,
-					Size: "lg",
+					Src:    songPic,
+					Size:   "lg",
+					Circle: true,
 				},
 			}
 			MusicCard.AddModule(cardHeader, MusicCardSection)
 			msg := model.CardMessage{&MusicCard}
 			content, _ := msg.BuildMessage()
-			fmt.Println("content文本内容为", content)
-			reMsg := map[string]interface{}{
-				"type":       10,
-				"channel_id": msgEvent.TargetId,
-				"content":    string(content),
-				"quote":      msgEvent.MsgId,
-			}
-			reDataByte, err := sonic.Marshal(reMsg)
-			if err != nil {
-				return err
-			}
-			resp, err := client.SetBody(reDataByte).Post()
-			log.Info("Post请求给客户端返回歌曲信息：%s", client.String())
-			if err != nil {
-				log.Error("处理歌曲信息返回错误：", err)
-			}
-			log.Infof("resp:%s", string(resp))
+			untils.SendMessage(10, msgEvent.TargetId, content, msgEvent.MsgId, "", "")
 		}
 		//处理网易云音乐结束
 		return nil
