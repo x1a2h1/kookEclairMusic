@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"net/url"
 )
 
 func init() {
@@ -137,6 +138,7 @@ type Response struct {
 func Search(keywords string) (int, string, string, error) {
 	//	通过关键词 搜索歌曲 将返回body转化成json可读形式，将lenght：0 的id传给获取播放地址 在返回进行播放伴奏
 	//	如果/网易 明明就 周杰伦  搜索多匹配 歌曲名 歌手
+	keywords = url.QueryEscape(keywords)
 
 	resp, err := http.Get("http://192.168.110.69:3000/cloudsearch?keywords=" + keywords + "&limit=1")
 	if err != nil {

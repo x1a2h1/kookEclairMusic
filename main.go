@@ -4,7 +4,7 @@ import (
 	"botserver/app"
 	"botserver/conf"
 	"fmt"
-	"github.com/idodo/golang-bot/kaihela/api/base"
+	"github.com/kaiheila/golang-bot/api/base"
 	log "github.com/sirupsen/logrus"
 )
 
