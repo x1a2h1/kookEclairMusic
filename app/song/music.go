@@ -155,3 +155,5 @@ func MusicInfo(id int) (map[string]interface{}, error) {
 	fmt.Println("403335371，获取到的歌曲详情为", res)
 	return nil, err
 }
+
+//判断歌单是否有歌单

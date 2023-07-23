@@ -1,6 +1,7 @@
 package app
 
 import (
+	"botserver/app/kook"
 	"botserver/app/model"
 	_ "botserver/app/redis"
 	"botserver/app/song"
@@ -116,6 +117,12 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 		if msgEvent.Content == "/帮助" {
 			untils.SendMessage(10, msgEvent.TargetId, helpCardMsg, msgEvent.MsgId, "", "")
 		}
+		if msgEvent.Content == "/登录" {
+			//获取登陆api
+			//判断数据是否为空
+			untils.SendMessage(1, msgEvent.TargetId, "二维码登陆，功能待完善", msgEvent.MsgId, "", "")
+			//存储当前服务器的登陆状态
+		}
 		//当前bot的状态 播放音乐？当前播放的进度条？下一首预告？
 		//当前bot的状态 播放音乐？当前播放的进度条？下一首预告？结束
 
@@ -125,7 +132,7 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 		if strings.HasPrefix(msgEvent.KMarkdown.RawContent, "/网易") {
 			re := regexp.MustCompile(`/网易\s+(\S+)`)
 			match := re.FindStringSubmatch(msgEvent.KMarkdown.RawContent)
-			var receiveSongName string = match[1]
+			var receiveSongName = match[1]
 			//判断用户是否在语音内
 			//获取当前点歌的歌曲id
 			songId, songName, songPic, err := song.Search(receiveSongName)
@@ -147,11 +154,6 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 			fmt.Println("403335371请求获取歌曲url地址", musicUrl)
 			//获取当前用户所在的服务
 			Client := helper.NewApiHelper("/v3/channel-user/get-joined-channel", conf.Token, conf.BaseUrl, "", "")
-			//data := map[string]interface{}{
-			//	"guild_id": msgEvent.GuildID,
-			//	"user_id":  msgEvent.AuthorId,
-			//}
-			//byteData, err := sonic.Marshal(data)
 			Client.SetQuery(map[string]string{
 				"guild_id": msgEvent.GuildID,
 				"user_id":  msgEvent.AuthorId,
@@ -171,41 +173,30 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 			}
 			var res Response
 			err = json.Unmarshal(resp, &res)
-			go kookvoice.Play(conf.Token, res.Data.Items[0].Id, musicUrl)
 			//将歌曲添加至频道列表
-			type playlist struct {
-				Gid  string `redis:"gid"`
-				Song []interface{}
-			}
 			//err = conf.DB.AutoMigrate(&model.Playlist{}, &model.Song{})
 			//if err != nil {
 			//	return err
 			//}
-			err = conf.DB.AutoMigrate(&model.Playlist{}, &model.Song{}) //创建播放列表
+			//创建播放列表
+			var playlist model.Playlist
+			err = conf.DB.First(&playlist, msgEvent.GuildID).Error
 			if err != nil {
-				return err
-			}
-			//添加音乐并自动创建播放列表
-			var playlists model.Playlist
-			conf.DB.First(&playlists, "id = ?", msgEvent.GuildID)
-
-			if playlists.ID == "" {
-				conf.DB.Create(model.Playlist{msgEvent.GuildID, []model.Song{model.Song{
+				conf.DB.Create(&model.Playlist{ID: msgEvent.GuildID, Songs: []model.Song{{
 					SongId:   songid,
-					Songname: songName,
-					Coverurl: songPic,
-					Username: msgEvent.Author.Username,
+					SongName: songName,
+					CoverUrl: songPic,
+					UserName: msgEvent.Author.Username,
 				}}})
 			} else {
-				// 已经存在，在songs表中添加数据，并赋予服务器id
 				conf.DB.Create(&model.Song{SongId: songid,
-					Songname:   songName,
-					Coverurl:   songPic,
-					Username:   msgEvent.Author.Username,
+					SongName:   songName,
+					CoverUrl:   songPic,
+					UserName:   msgEvent.Author.Username,
 					PlaylistID: msgEvent.GuildID,
 				})
 			}
-			//conf.DB.Create()
+			//添加音乐并自动创建播放列表
 			//将歌曲添加至频道列表结束
 			MusicCard := model.CardMessageCard{
 				Theme: model.CardThemePrimary,
@@ -228,46 +219,45 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 			msg := model.CardMessage{&MusicCard}
 			content, _ := msg.BuildMessage()
 			untils.SendMessage(10, msgEvent.TargetId, content, msgEvent.MsgId, "", "")
+			go kookvoice.Play(conf.Token, res.Data.Items[0].Id, musicUrl)
 		}
 		//处理网易云音乐结束
 		//列出播放列表
 		if msgEvent.Content == "/列表" {
-			var playlists model.Playlist
-			conf.DB.Preload("Playlist.Songs").Take(&playlists, "id = ?", msgEvent.GuildID)
+			kook.PlayForList(msgEvent.GuildID, msgEvent.TargetId)
 
-			fmt.Println("当前获取到的说有播放列表", playlists)
 			//	查询当前频道的播放列表
 			//	查询当前频道的播放列表结束
 			//songList := d
-			data := model.CardMessageCard{
-				Theme: model.CardThemeSuccess,
-				Modules: []interface{}{
-					&model.CardMessageHeader{Text: model.CardMessageElementText{
-						Content: "播放列表",
-						Emoji:   false,
-					}},
-					&model.CardMessageDivider{},
-					&model.CardMessageSection{
-						Mode: "right",
-						Text: model.CardMessageElementKMarkdown{Content: "> ** **\n> **音乐名**\n> **歌手**\n> ** **"},
-						Accessory: &model.CardMessageElementImage{
-							Src:    "https://c-ssl.dtstatic.com/uploads/blog/202207/09/20220709150824_97667.thumb.400_0.jpg",
-							Size:   "sm",
-							Circle: true,
-						},
-					},
-					&model.CardMessageDivider{},
-				},
-			}
-			listMsg, err := model.CardMessage{&data}.BuildMessage()
-			if err != nil {
-				log.Error("编译信息时出错！", err)
-				return err
-			}
-			err = untils.SendMessage(10, msgEvent.TargetId, listMsg, "", "", "")
-			if err != nil {
-				return err
-			}
+			//data := model.CardMessageCard{
+			//	Theme: model.CardThemeSuccess,
+			//	Modules: []interface{}{
+			//		&model.CardMessageHeader{Text: model.CardMessageElementText{
+			//			Content: "播放列表",
+			//			Emoji:   false,
+			//		}},
+			//		&model.CardMessageDivider{},
+			//		&model.CardMessageSection{
+			//			Mode: "right",
+			//			Text: model.CardMessageElementKMarkdown{Content: "> ** **\n> **音乐名**\n> **歌手**\n> ** **"},
+			//			Accessory: &model.CardMessageElementImage{
+			//				Src:    "https://c-ssl.dtstatic.com/uploads/blog/202207/09/20220709150824_97667.thumb.400_0.jpg",
+			//				Size:   "sm",
+			//				Circle: true,
+			//			},
+			//		},
+			//		&model.CardMessageDivider{},
+			//	},
+			//}
+			//listMsg, err := model.CardMessage{&data}.BuildMessage()
+			//if err != nil {
+			//	log.Error("编译信息时出错！", err)
+			//	return err
+			//}
+			//err = untils.SendMessage(10, msgEvent.TargetId, listMsg, "", "", "")
+			//if err != nil {
+			//	return err
+			//}
 		}
 		//列出播放列表结束
 		return nil
