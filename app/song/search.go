@@ -2,6 +2,7 @@ package song
 
 import (
 	"encoding/json"
+	log "github.com/sirupsen/logrus"
 	"io"
 	"net/http"
 	"net/url"
@@ -9,6 +10,12 @@ import (
 
 func init() {
 
+}
+
+type MusicUrl struct {
+	Data []struct {
+		Url string `json:"url"`
+	} `json:"data"`
 }
 
 type Response struct {
@@ -163,4 +170,29 @@ func Search(keywords string) (int, string, string, error) {
 	name := result.Result.Songs[0].Name
 	pic := result.Result.Songs[0].Al.PicUrl
 	return id, name, pic, nil
+}
+
+func GetMusicUrl(id string) string {
+	resp, err := http.Get("http://192.168.110.69:3000/song/url/v1?id=" + id + "&level=exhigh")
+	if err != nil {
+		log.Error("403335371获取音乐url出现错误！", err)
+	}
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+
+		}
+	}(resp.Body)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return ""
+	}
+	var res MusicUrl
+	err = json.Unmarshal(body, &res)
+	if err != nil {
+		return ""
+	}
+	songurl := res.Data[0].Url
+
+	return songurl
 }
