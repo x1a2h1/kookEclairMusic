@@ -14,7 +14,8 @@ func init() {
 
 type MusicUrl struct {
 	Data []struct {
-		Url string `json:"url"`
+		Url  string `json:"url"`
+		Time int    `json:"time"`
 	} `json:"data"`
 }
 
@@ -172,7 +173,7 @@ func Search(keywords string) (int, string, string, error) {
 	return id, name, pic, nil
 }
 
-func GetMusicUrl(id string) string {
+func GetMusicUrl(id string) (string, int) {
 	resp, err := http.Get("http://192.168.110.69:3000/song/url/v1?id=" + id + "&level=exhigh")
 	if err != nil {
 		log.Error("403335371获取音乐url出现错误！", err)
@@ -185,14 +186,15 @@ func GetMusicUrl(id string) string {
 	}(resp.Body)
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return ""
+		return "", 0
 	}
 	var res MusicUrl
 	err = json.Unmarshal(body, &res)
 	if err != nil {
-		return ""
+		return "", 0
 	}
 	songurl := res.Data[0].Url
+	time := res.Data[0].Time
 
-	return songurl
+	return songurl, time
 }

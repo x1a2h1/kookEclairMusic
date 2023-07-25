@@ -16,6 +16,9 @@ func main() {
 	session := base.NewWebSocketSession(conf.Token, conf.BaseUrl, "./session.pid", "", 1)
 	session.On(base.EventReceiveFrame, &app.ReceiveFrameHandler{})
 	session.On("GROUP*", &app.GroupEventHandler{})
+	session.On("PLAY*", &app.PlayMusicHandler{})
 	session.On("GROUP_9", &app.GroupTextEventHandler{Token: conf.Token, BaseUrl: conf.BaseUrl})
+
 	session.Start()
+
 }
