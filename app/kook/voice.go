@@ -9,12 +9,10 @@ import (
 	"fmt"
 	"github.com/kaiheila/golang-bot/api/helper"
 	log "github.com/sirupsen/logrus"
+	"sync"
 )
 
-var MusicList = make(chan model.MusicList, 50)
-
 func init() {
-
 }
 
 func PlayForList(gid string, targerId string) error {
@@ -82,29 +80,7 @@ type GateWayHttpApiResult struct {
 	} `json:"data"`
 }
 
-func SongsHandle(songs *model.MusicList) {
-	fmt.Println("403335371往Channel发送消息")
-	songUrl, times := song.GetMusicUrl(songs.SongId)
-	sendData := model.MusicList{
-		Guild:    songs.Guild,
-		ChanId:   songs.ChanId,
-		SongId:   songs.SongId,
-		SongName: songs.SongName,
-		MusicUrl: songUrl,
-		UserName: songs.UserName,
-		CoverUrl: songs.CoverUrl,
-		Duration: times,
-	}
-	MusicList <- sendData
-}
-func MusicHandle() {
-	//	接收当前服务器，当前频道id，以及用户名进行处理
-	//	对数据库进行相对应的检索
-	//接收当前服务器是否存在播放，如果存在播放for if判断
-	//	将当前歌曲传入channel
-}
-
-func GetChannelId(gid string, uid string) string {
+func GetChannelId(gid string, uid string) (string, error) {
 
 	Client := helper.NewApiHelper("/v3/channel-user/get-joined-channel", conf.Token, conf.BaseUrl, "", "")
 	Client.SetQuery(map[string]string{
@@ -127,5 +103,98 @@ func GetChannelId(gid string, uid string) string {
 	var res Response
 	err = json.Unmarshal(resp, &res)
 	cid := res.Data.Items[0].Id
-	return cid
+	return cid, err
+}
+func NewClient(token string, channelId string) (*VoiceInstance, error) {
+	vi := VoiceInstance{
+		Token:     token,
+		ChannelId: channelId,
+	}
+	err := vi.Init()
+	if err != nil {
+		return nil, err
+	}
+	return &vi, nil
+}
+
+var Status sync.Map
+
+func Play(gid string, cid string, uid string) error {
+	// 通过cid channel ID创建播放
+	//判断当前传进来的id是否活跃状态
+	//判断当前频道id是否已经创建了持久化进程
+	isPlay, ok := Status.Load(cid)
+	if !ok {
+		fmt.Println(isPlay)
+		Status.Store(cid, true)
+		client, err := NewClient(conf.Token, cid)
+		if err != nil {
+			return err
+		}
+		var playlist model.Playlist
+		conf.DB.Preload("Songs").Find(&playlist, gid)
+		go func() {
+			client.Init()
+			defer client.Close()
+			defer client.wsConnect.Close()
+			for {
+				songInfo := getMusic(gid)
+				if songInfo.ID == 0 {
+					break
+				}
+				fmt.Println("当前正在播放歌曲", songInfo.SongID)
+				url, times := song.GetMusicUrl(songInfo.SongID)
+				err := client.PlayMusic(url)
+				if err != nil {
+					return
+				}
+				conf.DB.Debug().Delete(&songInfo, songInfo.ID)
+				fmt.Println("当前歌曲："+songInfo.Name+"，总用时：", times)
+
+			}
+			fmt.Println(cid, "频道播放已结束")
+			Status.Delete(cid)
+			fmt.Println(cid, "频道播放已结束！进程退出成功！")
+		}()
+		//	goroutine结束后
+		fmt.Println("已经开启goroutine进行连接播放")
+	} else {
+		fmt.Println("当前频道" + cid + "播放列表正在播放")
+	}
+
+	return nil
+}
+
+type Song struct {
+	ID       int
+	SongID   string
+	Name     string
+	CoverUrl string
+	UserName string
+	Singer   string
+}
+
+func getMusic(gid string) Song {
+	var Playlist model.Playlist
+	conf.DB.Preload("Songs").Find(&Playlist, gid)
+	if len(Playlist.Songs) == 0 {
+		return Song{
+			ID:       0,
+			SongID:   "",
+			Name:     "",
+			CoverUrl: "",
+			UserName: "",
+			Singer:   "",
+		}
+	} else {
+		SongInfo := Song{
+			ID:       Playlist.Songs[0].ID,
+			SongID:   Playlist.Songs[0].SongId,
+			Name:     Playlist.Songs[0].SongName,
+			CoverUrl: Playlist.Songs[0].CoverUrl,
+			UserName: Playlist.Songs[0].UserName,
+			Singer:   Playlist.Songs[0].UserName,
+		}
+		return SongInfo
+	}
 }

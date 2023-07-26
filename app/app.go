@@ -109,12 +109,12 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 			log.Error("编译信息时出错！", err)
 		}
 		if msgEvent.Content == "/帮助" {
-			untils.SendMessage(10, msgEvent.TargetId, helpCardMsg, msgEvent.MsgId, "", "")
+			go untils.SendMessage(10, msgEvent.TargetId, helpCardMsg, msgEvent.MsgId, "", "")
 		}
 		if msgEvent.Content == "/登录" {
 			//获取登陆api
 			//判断数据是否为空
-			untils.SendMessage(1, msgEvent.TargetId, "二维码登陆，功能待完善", msgEvent.MsgId, "", "")
+			go untils.SendMessage(1, msgEvent.TargetId, "二维码登陆，功能待完善", msgEvent.MsgId, "", "")
 			//存储当前服务器的登陆状态
 		}
 		//当前bot的状态 播放音乐？当前播放的进度条？下一首预告？
@@ -126,7 +126,7 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 		if strings.HasPrefix(msgEvent.KMarkdown.RawContent, "/网易") {
 			re := regexp.MustCompile(`/网易\s+(\S+)`)
 			match := re.FindStringSubmatch(msgEvent.KMarkdown.RawContent)
-			var receiveSongName = match[1]
+			receiveSongName := match[1]
 			//判断用户是否在语音内
 			//获取当前点歌的歌曲id
 			songId, songName, songPic, err := song.Search(receiveSongName)
@@ -172,10 +172,12 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 					PlaylistID: msgEvent.GuildID,
 				})
 			}
-			go func() {
-				//	将处理数据库内容并发送值channel
+			cid, err := kook.GetChannelId(msgEvent.GuildID, msgEvent.AuthorId)
+			if err != nil {
+				return err
+			}
 
-			}()
+			kook.Play(msgEvent.GuildID, cid, msgEvent.AuthorId)
 			//添加音乐并自动创建播放列表
 			//将歌曲添加至频道列表结束
 			MusicCard := model.CardMessageCard{
@@ -199,17 +201,6 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 			msg := model.CardMessage{&MusicCard}
 			content, _ := msg.BuildMessage()
 			untils.SendMessage(10, msgEvent.TargetId, content, msgEvent.MsgId, "", "")
-
-			//go kookvoice.Play(conf.Token, res.Data.Items[0].Id, musicUrl)
-			//sendData := &model.MusicList{
-			//	Guild:    msgEvent.GuildID,
-			//	ChanId:   res.Data.Items[0].Id,
-			//	SongId:   songid,
-			//	SongName: songName,
-			//	UserName: msgEvent.Author.Username,
-			//	CoverUrl: songPic,
-			//}
-			//kook.SongsHandle(sendData)
 		}
 		//处理网易云音乐结束
 		//列出播放列表
@@ -229,33 +220,6 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 		log.WithError(err).Error("频道文本事件处理出错！！！")
 	}
 
-	//通过通道对数据数据库进行一些操作
-	//for {
-	//	select {
-	//	case Song := <-kook.MusicList:
-	//		//处理用户点歌
-	//		//将歌曲信息写入数据库
-	//		wg.Add(1)
-	//		go func(list model.MusicList) {
-	//			fmt.Println("403335371Chan list data:", &list)
-	//			gatewayUrl := kookvoice.GetGatewayUrl(conf.Token, list.ChanId)
-	//			connect, rtpUrl := kookvoice.InitWebsocketClient(gatewayUrl)
-	//			go kookvoice.KeepWebsocketClientAlive(connect)
-	//			go kookvoice.KeepRecieveMessage(connect)
-	//			kookvoice.StreamAudio(rtpUrl, list.MusicUrl)
-	//			defer connect.Close()
-	//			defer close(kook.MusicList)
-	//			defer wg.Done()
-	//			fmt.Println("403335371Chan已经关闭")
-	//		}(Song)
-	//		//歌曲播放结束时刷新数据库
-	//		fmt.Println(Song)
-	//	default:
-	//		//	判断songs播放列表中是否存在音乐，读取他的服务器id和播放链接对其进行播放
-	//	}
-	//}
-	//	对数据进行播放
-
 	return nil
 }
 
@@ -272,7 +236,7 @@ func (play *PlayMusicHandler) Handle(e event.Event) error {
 			var wg sync.WaitGroup
 			wg.Add(len(playlist.Songs))
 			for _, item := range playlist.Songs {
-				channelId := kook.GetChannelId(item.PlaylistID, item.UserId)
+				channelId, _ := kook.GetChannelId(item.PlaylistID, item.UserId)
 				gatewayUrl := kookvoice.GetGatewayUrl(conf.Token, channelId)
 				songUrl, times := song.GetMusicUrl(item.SongId)
 				connect, rtpUrl := kookvoice.InitWebsocketClient(gatewayUrl)
