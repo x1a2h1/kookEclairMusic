@@ -4,12 +4,13 @@ import (
 	model "botserver/app/model"
 	"botserver/app/song"
 	"botserver/conf"
-	"botserver/pkg/untils"
+	"botserver/pkg/utils"
 	"encoding/json"
 	"fmt"
 	"github.com/kaiheila/golang-bot/api/helper"
 	log "github.com/sirupsen/logrus"
 	"sync"
+	"time"
 )
 
 func init() {
@@ -63,7 +64,7 @@ func PlayForList(gid string, targerId string) error {
 		return err
 	}
 
-	err = untils.SendMessage(10, targerId, sendMsg, "", "", "")
+	err = utils.SendMessage(10, targerId, sendMsg, "", "", "")
 	if err != nil {
 		return err
 	}
@@ -102,8 +103,13 @@ func GetChannelId(gid string, uid string) (string, error) {
 	}
 	var res Response
 	err = json.Unmarshal(resp, &res)
-	cid := res.Data.Items[0].Id
-	return cid, err
+	if len(res.Data.Items) == 0 {
+		return "", err
+	} else {
+		cid := res.Data.Items[0].Id
+		return cid, err
+	}
+
 }
 func NewClient(token string, channelId string) (*VoiceInstance, error) {
 	vi := VoiceInstance{
@@ -146,11 +152,12 @@ func Play(gid string, cid string, uid string) error {
 				url, times := song.GetMusicUrl(songInfo.SongID)
 				err := client.PlayMusic(url)
 				if err != nil {
-					return
+					log.Error("当前播放歌曲存在异常！", err)
+					break
 				}
 				conf.DB.Debug().Delete(&songInfo, songInfo.ID)
 				fmt.Println("当前歌曲："+songInfo.Name+"，总用时：", times)
-
+				time.Sleep(time.Second)
 			}
 			fmt.Println(cid, "频道播放已结束")
 			Status.Delete(cid)
