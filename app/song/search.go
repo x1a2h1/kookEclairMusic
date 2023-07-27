@@ -1,6 +1,7 @@
 package song
 
 import (
+	"botserver/conf"
 	"encoding/json"
 	log "github.com/sirupsen/logrus"
 	"io"
@@ -148,7 +149,7 @@ func Search(keywords string) (int, string, string, error) {
 	//	如果/网易 明明就 周杰伦  搜索多匹配 歌曲名 歌手
 	keywords = url.QueryEscape(keywords)
 
-	resp, err := http.Get("http://192.168.110.69:3000/cloudsearch?keywords=" + keywords + "&limit=1")
+	resp, err := http.Get(conf.NetEasy + "/cloudsearch?keywords=" + keywords + "&limit=1")
 	if err != nil {
 		return 0, "", "", err
 	}
@@ -174,7 +175,7 @@ func Search(keywords string) (int, string, string, error) {
 }
 
 func GetMusicUrl(id string) (string, int) {
-	resp, err := http.Get("http://192.168.110.69:3000/song/url/v1?id=" + id + "&level=exhigh")
+	resp, err := http.Get(conf.NetEasy + "/song/url/v1?id=" + id + "&level=exhigh")
 	if err != nil {
 		log.Error("403335371获取音乐url出现错误！", err)
 	}

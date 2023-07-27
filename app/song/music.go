@@ -1,6 +1,7 @@
 package song
 
 import (
+	"botserver/conf"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -138,7 +139,7 @@ type SongInfo struct {
 
 func MusicInfo(id int) (map[string]interface{}, error) {
 	//	获取歌曲详情
-	url := fmt.Sprintf("http://192.168.110.69:3000/song/detail?ids=%d", id)
+	url := fmt.Sprintf(conf.NetEasy+"/song/detail?ids=%d", id)
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, err

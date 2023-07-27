@@ -3,7 +3,7 @@ package conf
 const (
 	Token   = "1/MjEyMzY=/51EiCA37ybJqwbhVlY3NmQ=="
 	BaseUrl = "https://www.kookapp.cn/api"
-	NetEasy = "http://192.168.110.69:3000" //网易云的api
+	NetEasy = "http://47.96.25.105:3000" //网易云的api
 	// HTTPServerIp HTTPServerPort  VerifyToken EncryptKey : WEBHOOK相关, 如果不是WEBHOOK,可不填
 	// HTTPServerIp 侦听的ip地址
 	HTTPServerIp = "0.0.0.0"
@@ -13,7 +13,7 @@ const (
 	VerifyToken = ""
 	// EncryptKey 若不需要加密，可不填。如果有encryptKey会更安全一点。
 	EncryptKey = ""
-	Version    = "v0.0.4"
+	Version    = "v0.0.5"
 	//数据库相关配置
 	Databese = "kookbot"
 	Username = "kookbot"
