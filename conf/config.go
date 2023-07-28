@@ -1,7 +1,7 @@
 package conf
 
 const (
-	Token   = "1/MjEyMzY=/51EiCA37ybJqwbhVlY3NmQ=="
+	Token   = "1/MjEyMzY=/ilk5j1TnZpIttapmVjD1hw=="
 	BaseUrl = "https://www.kookapp.cn/api"
 	NetEasy = "http://47.96.25.105:3000" //网易云的api
 	// HTTPServerIp HTTPServerPort  VerifyToken EncryptKey : WEBHOOK相关, 如果不是WEBHOOK,可不填
@@ -15,9 +15,9 @@ const (
 	EncryptKey = ""
 	Version    = "v0.0.5"
 	//数据库相关配置
-	Databese = "kookbot"
-	Username = "kookbot"
-	Host     = "mysql.sqlpub.com:3306"
-	Password = "18e95fb4e7f1cba7"
+	Databese = "kook"
+	Username = "x1a2h1"
+	Host     = "rm-cn-uax3bohco0002hco.rwlb.rds.aliyuncs.com"
+	Password = "Qkxz1216"
 	//数据库相关配置结束
 )

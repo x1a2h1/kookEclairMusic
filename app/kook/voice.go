@@ -16,15 +16,45 @@ import (
 func init() {
 }
 
+// 当前正在播放的音乐
+var CurrentSong sync.Map
+
+type SongData struct {
+	GuildID  string
+	Singer   string
+	SongName string
+	UserName string
+	CoverUrl string
+}
+
 func PlayForList(gid string, targerId string) error {
 	//	根据播放列表播放
-	var Current = make(map[string]string)
-	Current["songName"] = "陈宇晖牛逼"
-	Current["songUrl"] = "https://c-ssl.dtstatic.com/uploads/blog/202207/09/20220709150824_97667.thumb.400_0.jpg"
-	Current["singer"] = "陈宇晖"
-	Current["userName"] = "夏至"
 	var playlist model.Playlist
 	conf.DB.Preload("Songs").Take(&playlist, gid)
+	//获取当前频道正在播放的音乐
+	SongInfoData := &SongData{}
+	CurrentData, ok := CurrentSong.Load(gid)
+	if !ok {
+		SongInfoData = &SongData{
+			GuildID:  gid,
+			Singer:   "",
+			SongName: "当前暂无播放",
+			UserName: "",
+			CoverUrl: "https://c-ssl.dtstatic.com/uploads/blog/202207/09/20220709150824_97667.thumb.400_0.jpg",
+		}
+	} else {
+		if data, ok := CurrentData.(SongData); ok {
+			SongInfoData = &SongData{
+				GuildID:  data.GuildID,
+				Singer:   "",
+				SongName: data.SongName,
+				UserName: data.UserName,
+				CoverUrl: data.CoverUrl,
+			}
+		} else {
+			utils.SendMessage(1, targerId, "当前列表存在未知错误！", "", "", "")
+		}
+	}
 
 	listMsg := model.CardMessageCard{
 		Theme: model.CardThemeSuccess,
@@ -36,9 +66,9 @@ func PlayForList(gid string, targerId string) error {
 			&model.CardMessageDivider{},
 			&model.CardMessageSection{
 				Mode: "right",
-				Text: model.CardMessageElementKMarkdown{Content: "> ** **\n> **" + Current["songName"] + "**\n> **歌手**\n> ** **"},
+				Text: model.CardMessageElementKMarkdown{Content: "> ** **\n> **" + SongInfoData.SongName + "**\n> **歌手**\n> ** **"},
 				Accessory: &model.CardMessageElementImage{
-					Src:    Current["songUrl"],
+					Src:    SongInfoData.CoverUrl,
 					Size:   "sm",
 					Circle: true,
 				},
@@ -148,6 +178,13 @@ func Play(gid string, cid string, uid string) error {
 				if songInfo.ID == 0 {
 					break
 				}
+				CurrentSong.Store(gid, SongData{
+					GuildID:  gid,
+					Singer:   "",
+					SongName: songInfo.Name,
+					UserName: songInfo.UserName,
+					CoverUrl: songInfo.CoverUrl,
+				})
 				fmt.Println("当前正在播放歌曲", songInfo.SongID)
 				url, times := song.GetMusicUrl(songInfo.SongID)
 				err := client.PlayMusic(url)
@@ -159,6 +196,7 @@ func Play(gid string, cid string, uid string) error {
 				fmt.Println("当前歌曲："+songInfo.Name+"，总用时：", times)
 				time.Sleep(time.Second)
 			}
+			CurrentSong.Delete(gid)
 			fmt.Println(cid, "频道播放已结束")
 			Status.Delete(cid)
 			fmt.Println(cid, "频道播放已结束！进程退出成功！")

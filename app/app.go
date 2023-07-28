@@ -257,6 +257,7 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 							},
 						},
 					},
+					&model.CardMessageDivider{},
 				},
 			}
 			StatusMsg, _ := model.CardMessage{&cardData}.BuildMessage()
