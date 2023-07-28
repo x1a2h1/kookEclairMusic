@@ -10,7 +10,6 @@ import (
 	"github.com/kaiheila/golang-bot/api/helper"
 	log "github.com/sirupsen/logrus"
 	"sync"
-	"time"
 )
 
 func init() {
@@ -187,14 +186,13 @@ func Play(gid string, cid string, uid string) error {
 				})
 				fmt.Println("当前正在播放歌曲", songInfo.SongID)
 				url, times := song.GetMusicUrl(songInfo.SongID)
+				conf.DB.Debug().Delete(&songInfo, songInfo.ID)
 				err := client.PlayMusic(url)
 				if err != nil {
 					log.Error("当前播放歌曲存在异常！", err)
 					break
 				}
-				conf.DB.Debug().Delete(&songInfo, songInfo.ID)
 				fmt.Println("当前歌曲："+songInfo.Name+"，总用时：", times)
-				time.Sleep(time.Second)
 			}
 			CurrentSong.Delete(gid)
 			fmt.Println(cid, "频道播放已结束")

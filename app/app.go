@@ -188,11 +188,11 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 					Size:  model.CardSizeLg,
 				}
 				cardHeader := &model.CardMessageHeader{Text: model.CardMessageElementText{
-					Content: "已将" + songName + "添加至列表",
+					Content: "已将《" + songName + "》添加至列表",
 				}}
 				MusicCardSection := &model.CardMessageSection{
 					Text: model.CardMessageElementText{
-						Content: songName,
+						Content: songName + "\n歌手",
 					},
 					Accessory: model.CardMessageElementImage{
 						Src:    songPic,
