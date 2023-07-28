@@ -13,7 +13,7 @@ const (
 	VerifyToken = ""
 	// EncryptKey 若不需要加密，可不填。如果有encryptKey会更安全一点。
 	EncryptKey = ""
-	Version    = "v0.0.5"
+	Version    = "v0.0.6"
 	//数据库相关配置
 	Databese = "kook"
 	Username = "x1a2h1"

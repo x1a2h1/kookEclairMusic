@@ -12,6 +12,5 @@ COPY . .
 
 RUN go build -o eclair .
 FROM linuxserver/ffmpeg:latest
-
 COPY --from=0 /apps ./
 ENTRYPOINT ["./eclair"]
