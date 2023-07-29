@@ -184,26 +184,35 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 				kook.Play(msgEvent.GuildID, cid, msgEvent.AuthorId)
 
 				MusicCard := model.CardMessageCard{
-					Theme: model.CardThemePrimary,
+					Theme: model.CardThemeWarning,
 					Size:  model.CardSizeLg,
-				}
-				cardHeader := &model.CardMessageHeader{Text: model.CardMessageElementText{
-					Content: "已将《" + songName + "》添加至列表",
-				}}
-				MusicCardSection := &model.CardMessageSection{
-					Text: model.CardMessageElementText{
-						Content: songName + "\n歌手",
+					Modules: []interface{}{
+						&model.CardMessageHeader{Text: model.CardMessageElementText{
+							Content: "🫧已将《" + songName + "》添加至列表",
+							Emoji:   true,
+						}},
+						model.CardMessageDivider{},
+						&model.CardMessageSection{
+							Mode: model.CardMessageSectionModeLeft,
+							Text: model.CardMessageElementKMarkdown{Content: "> " + songName + "\n" + "歌手"},
+							Accessory: model.CardMessageElementImage{
+								Src:    songPic,
+								Alt:    "歌曲专辑图片",
+								Size:   "sm",
+								Circle: true,
+							},
+						},
+						model.CardMessageDivider{},
+						&model.CardMessageContext{
+							model.CardMessageElementImage{
+								Src: "https://img.kookapp.cn/assets/2023-07/aYf8cNg1hC05k05k.png",
+							},
+							model.CardMessageElementKMarkdown{Content: "[网易云](https://kookapp.cn)"},
+						},
 					},
-					Accessory: model.CardMessageElementImage{
-						Src:    songPic,
-						Size:   "lg",
-						Circle: true,
-					},
 				}
-				MusicCard.AddModule(cardHeader, MusicCardSection)
-				msg := model.CardMessage{&MusicCard}
-				content, _ := msg.BuildMessage()
-				utils.SendMessage(10, msgEvent.TargetId, content, msgEvent.MsgId, "", "")
+				SongCard := model.CardMessage{&MusicCard}.MustBuildMessage()
+				utils.SendMessage(10, msgEvent.TargetId, SongCard, msgEvent.MsgId, "", "")
 			}
 
 			//添加音乐并自动创建播放列表
