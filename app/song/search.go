@@ -3,6 +3,7 @@ package song
 import (
 	"botserver/conf"
 	"encoding/json"
+	"fmt"
 	log "github.com/sirupsen/logrus"
 	"io"
 	"net/http"
@@ -144,14 +145,14 @@ type Response struct {
 	Code int `json:"code"`
 }
 
-func Search(keywords string) (int, string, string, error) {
+func Search(keywords string) (int, string, string, string, error) {
 	//	通过关键词 搜索歌曲 将返回body转化成json可读形式，将lenght：0 的id传给获取播放地址 在返回进行播放伴奏
 	//	如果/网易 明明就 周杰伦  搜索多匹配 歌曲名 歌手
 	keywords = url.QueryEscape(keywords)
 
 	resp, err := http.Get(conf.NetEasy + "/cloudsearch?keywords=" + keywords + "&limit=1")
 	if err != nil {
-		return 0, "", "", err
+		return 0, "", "", "", err
 	}
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()
@@ -161,17 +162,30 @@ func Search(keywords string) (int, string, string, error) {
 	}(resp.Body)
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return 0, "", "", err
+		return 0, "", "", "", err
 	}
 	var result Response
 	err = json.Unmarshal(body, &result)
 	if err != nil {
-		return 0, "", "", err
+		return 0, "", "", "", err
 	}
+
+	SongSinger := ""
+
+	for i, name := range result.Result.Songs[0].Ar {
+		if i > 0 {
+			SongSinger += " / "
+		}
+		SongSinger += name.Name
+		fmt.Println("获取到的歌手名", i, "为：", name.Name)
+
+	}
+	fmt.Println("获取到的歌手名为：", SongSinger)
+	//返回当前搜索第一条的id，歌曲名，歌手，专辑图片，
 	id := result.Result.Songs[0].Id
-	name := result.Result.Songs[0].Name
+	SongName := result.Result.Songs[0].Name
 	pic := result.Result.Songs[0].Al.PicUrl
-	return id, name, pic, nil
+	return id, SongName, SongSinger, pic, nil
 }
 
 func GetMusicUrl(id string) (string, int) {
@@ -194,6 +208,7 @@ func GetMusicUrl(id string) (string, int) {
 	if err != nil {
 		return "", 0
 	}
+	//返回歌曲播放url+播放时长毫秒
 	songurl := res.Data[0].Url
 	time := res.Data[0].Time
 

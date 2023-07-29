@@ -9,9 +9,10 @@ type Song struct {
 	ID         int    //自增id
 	SongId     string //歌曲id
 	SongName   string //歌曲名
-	CoverUrl   string //歌曲头像
+	SongSinger string //歌手名
+	CoverUrl   string //专辑图片
 	UserName   string //点歌用户名
-	UserId     string //用户id
+	UserId     string //点歌用户id
 	PlaylistID string //当前歌曲属于哪个服务器的ID
 }
 

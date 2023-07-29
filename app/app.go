@@ -78,7 +78,7 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 		//开启多线程结束
 
 		helpCard := model.CardMessageCard{
-			Theme: model.CardThemeDanger,
+			Theme: "none",
 			Size:  model.CardSizeLg,
 			Modules: []interface{}{
 				&model.CardMessageHeader{Text: model.CardMessageElementText{
@@ -90,9 +90,9 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 					Text: model.CardMessageParagraph{
 						Cols: 3,
 						Fields: []interface{}{
-							model.CardMessageElementKMarkdown{Content: "**指令**\n(font)/网易 { 歌曲名 } (font)[error]\n(font)/QQ(font)[success]\n /帮助\n/状态"},
-							model.CardMessageElementKMarkdown{Content: "**功能**\n(font)播放网易云音乐(font)[success]\n待完善\n 帮助菜单\n 当前机器人状态"},
-							model.CardMessageElementKMarkdown{Content: "**示例**\n/网易 乐鼓 (dj版)\n待完善\n /帮助\n /状态"},
+							model.CardMessageElementKMarkdown{Content: "**指令**\n(font)/网易 { 歌曲名 } (font)[error]\n/帮助\n/状态"},
+							model.CardMessageElementKMarkdown{Content: "**功能**\n(font)播放网易云音乐(font)[success]\n帮助菜单\n当前机器人状态"},
+							model.CardMessageElementKMarkdown{Content: "**示例**\n/网易 乐鼓 (dj版)\n/帮助\n/状态"},
 						},
 					},
 				},
@@ -102,6 +102,7 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 					&model.CardMessageElementText{Content: "当前频道名：" + msgEvent.ChannelName + "\n"},
 					&model.CardMessageElementText{Content: "当前频道服务器ID：" + msgEvent.GuildID + "\n"},
 				},
+				//&model.CardMessageInvite{Code: "https://kook.top/x2eAZA"},
 				&model.CardMessageSection{
 					Text: model.CardMessageElementKMarkdown{Content: "Version:" + "`" + conf.Version + "` 问题反馈(met)1260041158(met)"},
 				},
@@ -132,16 +133,14 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 			receiveSongName := match[1]
 			//判断用户是否在语音内
 			//获取当前点歌的歌曲id
-			songId, songName, songPic, err := song.Search(receiveSongName)
+			songId, songName, songSinger, songPic, err := song.Search(receiveSongName)
 			if err != nil {
 				return err
 			}
-			fmt.Println("403335371,这", songId)
 			//获取当前点歌的歌曲id结束
-
 			//获取歌曲详情
 			songInfo, err := song.MusicInfo(songId)
-			fmt.Println("403335371，获取到的歌曲详情：", songInfo, "歌曲名", songName, "歌曲图片", songPic)
+			fmt.Println("403335371，获取到的歌曲详情：", songInfo, "歌曲名", songName, "歌手:", songSinger, "专辑图片", songPic)
 			//获取歌曲详情结束
 			songid := fmt.Sprintf("%d", songId)
 
@@ -160,17 +159,19 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 			err = conf.DB.First(&playlist, msgEvent.GuildID).Error
 			if err != nil {
 				conf.DB.Create(&model.Playlist{ID: msgEvent.GuildID, Songs: []model.Song{{
-					SongId:   songid,
-					SongName: songName,
-					CoverUrl: songPic,
-					UserId:   msgEvent.AuthorId,
-					UserName: msgEvent.Author.Username,
+					SongId:     songid,
+					SongName:   songName,
+					SongSinger: songSinger,
+					CoverUrl:   songPic,
+					UserId:     msgEvent.AuthorId,
+					UserName:   msgEvent.Author.Username,
 				}}})
 			} else {
 				conf.DB.Create(&model.Song{SongId: songid,
 					SongName:   songName,
 					CoverUrl:   songPic,
 					UserName:   msgEvent.Author.Username,
+					SongSinger: songSinger,
 					UserId:     msgEvent.AuthorId,
 					PlaylistID: msgEvent.GuildID,
 				})
@@ -188,17 +189,17 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 					Size:  model.CardSizeLg,
 					Modules: []interface{}{
 						&model.CardMessageHeader{Text: model.CardMessageElementText{
-							Content: "🫧已将《" + songName + "》添加至列表",
+							Content: "已将《" + songName + "》添加至列表",
 							Emoji:   true,
 						}},
 						model.CardMessageDivider{},
 						&model.CardMessageSection{
 							Mode: model.CardMessageSectionModeLeft,
-							Text: model.CardMessageElementKMarkdown{Content: "> " + songName + "\n" + "歌手"},
-							Accessory: model.CardMessageElementImage{
+							Text: &model.CardMessageElementKMarkdown{Content: "> " + songName + "\n" + songSinger},
+							Accessory: &model.CardMessageElementImage{
 								Src:    songPic,
 								Alt:    "歌曲专辑图片",
-								Size:   "sm",
+								Size:   "lg",
 								Circle: true,
 							},
 						},
@@ -207,11 +208,14 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 							model.CardMessageElementImage{
 								Src: "https://img.kookapp.cn/assets/2023-07/aYf8cNg1hC05k05k.png",
 							},
-							model.CardMessageElementKMarkdown{Content: "[网易云](https://kookapp.cn)"},
+							model.CardMessageElementKMarkdown{Content: "[网易云](https://music.163.com/#/song?id=" + songid + ")"},
 						},
 					},
 				}
-				SongCard := model.CardMessage{&MusicCard}.MustBuildMessage()
+				SongCard, err := model.CardMessage{&MusicCard}.BuildMessage()
+				if err != nil {
+					log.Error(err)
+				}
 				utils.SendMessage(10, msgEvent.TargetId, SongCard, msgEvent.MsgId, "", "")
 			}
 

@@ -36,22 +36,25 @@ func PlayForList(gid string, targerId string) error {
 	if !ok {
 		SongInfoData = &SongData{
 			GuildID:  gid,
-			Singer:   "",
+			Singer:   " ",
 			SongName: "当前暂无播放",
-			UserName: "",
+			UserName: " ",
 			CoverUrl: "https://c-ssl.dtstatic.com/uploads/blog/202207/09/20220709150824_97667.thumb.400_0.jpg",
 		}
 	} else {
 		if data, ok := CurrentData.(SongData); ok {
 			SongInfoData = &SongData{
 				GuildID:  data.GuildID,
-				Singer:   "",
+				Singer:   data.Singer,
 				SongName: data.SongName,
 				UserName: data.UserName,
 				CoverUrl: data.CoverUrl,
 			}
 		} else {
-			utils.SendMessage(1, targerId, "当前列表存在未知错误！", "", "", "")
+			err := utils.SendMessage(1, targerId, "当前列表存在未知错误！", "", "", "")
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -65,7 +68,7 @@ func PlayForList(gid string, targerId string) error {
 			&model.CardMessageDivider{},
 			&model.CardMessageSection{
 				Mode: "right",
-				Text: model.CardMessageElementKMarkdown{Content: "> ** **\n> **" + SongInfoData.SongName + "**\n> **歌手**\n> ** **"},
+				Text: model.CardMessageElementKMarkdown{Content: "> ** **\n> **" + SongInfoData.SongName + "**\n> **" + SongInfoData.Singer + "**\n "},
 				Accessory: &model.CardMessageElementImage{
 					Src:    SongInfoData.CoverUrl,
 					Size:   "sm",
@@ -80,7 +83,7 @@ func PlayForList(gid string, targerId string) error {
 			&model.CardMessageSection{
 				Mode: model.CardMessageSectionModeLeft,
 				Text: model.CardMessageElementKMarkdown{
-					Content: "> ** **\n> **" + item.SongName + "**\n> **歌手**\n> ** **",
+					Content: "> ** **\n> **" + item.SongName + "**\n> **" + item.SongSinger + "**\n> ** **",
 				},
 				Accessory: &model.CardMessageElementImage{
 					Src:  item.CoverUrl,
@@ -179,7 +182,7 @@ func Play(gid string, cid string, uid string) error {
 				}
 				CurrentSong.Store(gid, SongData{
 					GuildID:  gid,
-					Singer:   "",
+					Singer:   songInfo.Singer,
 					SongName: songInfo.Name,
 					UserName: songInfo.UserName,
 					CoverUrl: songInfo.CoverUrl,
@@ -236,7 +239,7 @@ func getMusic(gid string) Song {
 			Name:     Playlist.Songs[0].SongName,
 			CoverUrl: Playlist.Songs[0].CoverUrl,
 			UserName: Playlist.Songs[0].UserName,
-			Singer:   Playlist.Songs[0].UserName,
+			Singer:   Playlist.Songs[0].SongSinger,
 		}
 		return SongInfo
 	}
