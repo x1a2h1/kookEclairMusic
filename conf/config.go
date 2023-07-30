@@ -1,7 +1,7 @@
 package conf
 
 const (
-	Token   = "1/MjEyMzY=/BSe76oixWdVYzarLoqkwAw=="
+	Token   = "1/MjEyMzY=/gq88AfwCz6abwsu3XDXGdw=="
 	BaseUrl = "https://www.kookapp.cn/api"
 	NetEasy = "http://47.96.25.105:3000" //网易云的api
 	// HTTPServerIp HTTPServerPort  VerifyToken EncryptKey : WEBHOOK相关, 如果不是WEBHOOK,可不填
@@ -13,7 +13,7 @@ const (
 	VerifyToken = ""
 	// EncryptKey 若不需要加密，可不填。如果有encryptKey会更安全一点。
 	EncryptKey = ""
-	Version    = "v0.0.6"
+	Version    = "v0.0.8"
 	//数据库相关配置
 	Databese = "eclair"
 	Username = "x1a2h1"

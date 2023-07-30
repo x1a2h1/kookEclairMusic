@@ -192,7 +192,7 @@ func Play(gid string, cid string, uid string) error {
 				conf.DB.Debug().Delete(&songInfo, songInfo.ID)
 				err := client.PlayMusic(url)
 				if err != nil {
-					log.Error("当前播放歌曲存在异常！", err)
+					log.Error("\n当前播放歌曲存在异常！", err)
 					break
 				}
 				fmt.Println("当前歌曲："+songInfo.Name+"，总用时：", times)

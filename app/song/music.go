@@ -1,16 +1,14 @@
 package song
 
 import (
+	"botserver/app/model"
 	"botserver/conf"
+	"botserver/pkg/utils"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 )
-
-func GetMusic(id int) {
-	//获取音乐url
-}
 
 type SongInfo struct {
 	Songs []struct {
@@ -157,4 +155,108 @@ func MusicInfo(id int) (map[string]interface{}, error) {
 	return nil, err
 }
 
-//判断歌单是否有歌单
+// 获取歌单歌曲
+func GetPlaylist(id string) {
+	//	对所有歌曲写库
+
+}
+
+type ListInfo struct {
+	//Playlist struct {
+	//	Tracks []struct {
+	//		Name string `json:"name"`
+	//		Id   string `json:"id"`
+	//		Ar   []struct {
+	//			Name string `json:"name"`
+	//		} `json:"ar"`
+	//		Al struct {
+	//			PicUrl string `json:"picUrl"`
+	//		} `json:"al"`
+	//	} `json:"tracks"`
+	//} `json:"playlist"`
+
+	Playlist struct {
+		Id     int64 `json:"id"`
+		Tracks []struct {
+			Name string `json:"name"`
+			Id   int    `json:"id"`
+			Ar   []struct {
+				Id   int    `json:"id"`
+				Name string `json:"name"`
+			} `json:"ar"`
+			Al struct {
+				PicUrl string `json:"picUrl"`
+			} `json:"al"`
+		} `json:"tracks"`
+	} `json:"playlist"`
+}
+
+func GetListAllSongs(id string, gid string, targetId string, uid string, uname string) error {
+	//获取歌单中所有歌曲
+	resp, err := http.Get(conf.NetEasy + "/playlist/detail?id=" + id)
+	if err != nil {
+		return err
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+
+	}
+	var res ListInfo
+	err = json.Unmarshal(body, &res)
+
+	SongTotal := fmt.Sprintf("%d", len(res.Playlist.Tracks))
+
+	//写入数据库
+	for _, songItem := range res.Playlist.Tracks {
+		songId := fmt.Sprintf("%d", songItem.Id)
+		conf.DB.Create(&model.Song{
+			SongId:     songId,
+			SongName:   songItem.Name,
+			SongSinger: songItem.Ar[0].Name,
+			CoverUrl:   songItem.Al.PicUrl,
+			UserName:   uname,
+			UserId:     uid,
+			PlaylistID: gid,
+		})
+	}
+	//cid, err := kook.GetChannelId(gid, uid)
+	//kook.Play(gid, "3970172859382929", uid)
+
+	//发送卡片
+	listCard := model.CardMessageCard{
+		Theme: model.CardThemeSuccess,
+		Modules: []interface{}{
+			&model.CardMessageHeader{Text: model.CardMessageElementText{
+				Content: "成功导入" + SongTotal + "首歌曲",
+				Emoji:   false,
+			}},
+			&model.CardMessageDivider{},
+		},
+	}
+
+	for _, item := range res.Playlist.Tracks {
+		listCard.AddModule(
+			&model.CardMessageSection{
+				Mode: "left",
+				Text: model.CardMessageElementKMarkdown{
+					Content: "> " + item.Name + "\n> " + item.Ar[0].Name,
+				},
+				//Accessory: &model.CardMessageElementImage{
+				//	Src:  item.Al.PicUrl,
+				//	Size: "lg",
+				//},
+			},
+		)
+	}
+	sendMsg, err := model.CardMessage{&listCard}.BuildMessage()
+	if err != nil {
+		return err
+	}
+	err = utils.SendMessage(10, targetId, sendMsg, "", "", "")
+	if err != nil {
+		return err
+	}
+	fmt.Println(gid, "当前歌单的数据为", res.Playlist)
+	return err
+}

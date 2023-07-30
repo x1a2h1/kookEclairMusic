@@ -209,8 +209,10 @@ func GetMusicUrl(id string) (string, int) {
 		return "", 0
 	}
 	//返回歌曲播放url+播放时长毫秒
-	songurl := res.Data[0].Url
-	time := res.Data[0].Time
-
-	return songurl, time
+	if len(res.Data) != 0 {
+		songUrl := res.Data[0].Url
+		time := res.Data[0].Time
+		return songUrl, time
+	}
+	return "", 0
 }

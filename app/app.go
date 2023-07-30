@@ -75,17 +75,18 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 		}
 
 		//开启多线程
-		//开启多线程结束
-
+		//开启多线程结束https://kook.top/x2eAZA
+		LinkUrl := "https://kook.top/x2eAZA"
 		helpCard := model.CardMessageCard{
 			Theme: "none",
 			Size:  model.CardSizeLg,
 			Modules: []interface{}{
 				&model.CardMessageHeader{Text: model.CardMessageElementText{
-					Content: "🌈帮助菜单 & help menu",
+					Content: "🌈帮助菜单",
 					Emoji:   true,
 				}},
 				&model.CardMessageDivider{},
+
 				&model.CardMessageSection{
 					Text: model.CardMessageParagraph{
 						Cols: 3,
@@ -96,13 +97,15 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 						},
 					},
 				},
+				&model.CardMessageInvite{
+					Code: LinkUrl,
+				},
 				&model.CardMessageDivider{},
 				&model.CardMessageContext{
 					&model.CardMessageElementText{Content: "当前频道id：" + msgEvent.TargetId + "\n"},
 					&model.CardMessageElementText{Content: "当前频道名：" + msgEvent.ChannelName + "\n"},
 					&model.CardMessageElementText{Content: "当前频道服务器ID：" + msgEvent.GuildID + "\n"},
 				},
-				//&model.CardMessageInvite{Code: "https://kook.top/x2eAZA"},
 				&model.CardMessageSection{
 					Text: model.CardMessageElementKMarkdown{Content: "Version:" + "`" + conf.Version + "` 问题反馈(met)1260041158(met)"},
 				},
@@ -112,25 +115,76 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 		if err != nil {
 			log.Error("编译信息时出错！", err)
 		}
+		fmt.Println(helpCardMsg)
+
+		//InviteCard := model.CardMessage{
+		//	&model.CardMessageCard{
+		//		Theme: "",
+		//		Modules: []interface{}{
+		//
+		//			&model.CardMessageHeader{Text: model.CardMessageElementText{
+		//				Content: LinkUrl,
+		//				Emoji:   false,
+		//			}},
+		//			&model.CardMessageInvite{
+		//				Code: LinkUrl,
+		//			},
+		//		},
+		//	},
+		//}.MustBuildMessage()
+
 		if msgEvent.Content == "/帮助" {
 			go utils.SendMessage(10, msgEvent.TargetId, helpCardMsg, msgEvent.MsgId, "", "")
+			//go utils.SendMessage(10, msgEvent.TargetId, InviteCard, "", "", "")
+
 		}
+		if msgEvent.Content == "/切歌" {
+			go utils.SendMessage(1, msgEvent.TargetId, "功能已经加入待开发队列", msgEvent.MsgId, "", "")
+		}
+		if strings.HasPrefix(msgEvent.Content, "/playlist") {
+			re := regexp.MustCompile(`/\w+ (\d+)`)
+
+			match := re.FindStringSubmatch(msgEvent.Content)
+			listId := ""
+			if len(match) > 1 {
+				listId = match[1]
+				go song.GetListAllSongs(listId, msgEvent.GuildID, msgEvent.TargetId, msgEvent.AuthorId, msgEvent.Author.Username)
+			} else {
+				fmt.Println("播放列表id获取有误！")
+			}
+		}
+
 		if msgEvent.Content == "/登录" {
 			//获取登陆api
 			//判断数据是否为空
-			go utils.SendMessage(1, msgEvent.TargetId, "二维码登陆，功能待完善", msgEvent.MsgId, "", "")
+			go utils.SendMessage(1, msgEvent.TargetId, "二维码登陆，功能已经加入开发队列", msgEvent.MsgId, "", "")
 			//存储当前服务器的登陆状态
 		}
 		//当前bot的状态 播放音乐？当前播放的进度条？下一首预告？
 		//当前bot的状态 播放音乐？当前播放的进度条？下一首预告？结束
 
 		//当前bot的播放list 播放列表，超过50条不可添加 按序号排列 可以输入/删除 [2]
-
+		if strings.HasPrefix(msgEvent.Content, "/link") {
+			linkData := regexp.MustCompile(`http://\w+.\w+/\w+`)
+			getlink := linkData.FindString(msgEvent.Content)
+			utils.SendMessage(1, msgEvent.TargetId, getlink, "", "", "")
+		}
 		//处理网易云音乐
 		if strings.HasPrefix(msgEvent.KMarkdown.RawContent, "/网易") {
 			re := regexp.MustCompile(`/网易 (.*)`)
 			match := re.FindStringSubmatch(msgEvent.KMarkdown.RawContent)
-			receiveSongName := match[1]
+			receiveSongName := ""
+			if len(match) > 0 {
+				receiveSongName = match[1]
+			} else {
+				utils.SendMessage(1, msgEvent.TargetId, "客官，关键词有误", "", "", "")
+				return err
+			}
+
+			//判断用户发送的是手机版链接还是pc端
+			//linkData := regexp.MustCompile(`http://\w+.\w+/\w+`)
+			//getlink := linkData.FindString(receiveSongName)
+
 			//判断用户是否在语音内
 			//获取当前点歌的歌曲id
 			songId, songName, songSinger, songPic, err := song.Search(receiveSongName)
@@ -140,7 +194,7 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 			//获取当前点歌的歌曲id结束
 			//获取歌曲详情
 			songInfo, err := song.MusicInfo(songId)
-			fmt.Println("403335371，获取到的歌曲详情：", songInfo, "歌曲名", songName, "歌手:", songSinger, "专辑图片", songPic)
+			fmt.Println("403335371，获取到的歌曲详情：", "歌曲ID:", songId, songInfo, "歌曲名:", songName, "歌手:", songSinger, "专辑图片:", songPic)
 			//获取歌曲详情结束
 			songid := fmt.Sprintf("%d", songId)
 
