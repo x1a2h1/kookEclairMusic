@@ -15,9 +15,9 @@ const (
 	EncryptKey = ""
 	Version    = "v0.0.8"
 	//数据库相关配置
-	Databese = "eclair"
-	Username = "x1a2h1"
-	Host     = "192.168.110.69:3306"
-	Password = "Qkxz1216"
+	Databese = "kook"
+	Username = "root"
+	Host     = "mysql.inscode.run:3306"
+	Password = "inscode"
 	//数据库相关配置结束
 )
