@@ -189,6 +189,10 @@ func Play(gid string, cid string, uid string) error {
 				})
 				fmt.Println("当前正在播放歌曲", songInfo.SongID)
 				url, times := song.GetMusicUrl(songInfo.SongID)
+				if url == "" || times == 0 {
+					log.Error("获取音乐url失败")
+					break
+				}
 				conf.DB.Debug().Delete(&songInfo, songInfo.ID)
 				err := client.PlayMusic(url)
 				if err != nil {
