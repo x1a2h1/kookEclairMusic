@@ -165,17 +165,18 @@ func Play(gid string, cid string, uid string) error {
 	if !ok {
 		fmt.Println(isPlay)
 		Status.Store(cid, true)
-		client, err := NewClient(conf.Token, cid)
-		if err != nil {
-			return err
-		}
+
 		var playlist model.Playlist
 		conf.DB.Preload("Songs").Find(&playlist, gid)
 		go func() {
-			client.Init()
+			client, err := NewClient(conf.Token, cid)
+			if err != nil {
+				return
+			}
 			defer client.Close()
-			defer client.wsConnect.Close()
+			//defer client.wsConnect.Close()
 			for {
+				client.Init()
 				songInfo := getMusic(gid)
 				if songInfo.ID == 0 {
 					break
@@ -189,6 +190,7 @@ func Play(gid string, cid string, uid string) error {
 				})
 				fmt.Println("当前正在播放歌曲", songInfo.SongID)
 				url, times := song.GetMusicUrl(songInfo.SongID)
+				fmt.Println("当前播放的音乐url为", url, "当前播放时长为", times)
 				if url == "" || times == 0 {
 					log.Error("获取音乐url失败")
 					break

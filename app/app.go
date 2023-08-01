@@ -17,6 +17,7 @@ import (
 	"github.com/shirou/gopsutil/v3/mem"
 	log "github.com/sirupsen/logrus"
 	"github.com/x1a2h1/kookvoice"
+	"os"
 	"regexp"
 	"runtime"
 	"strings"
@@ -160,6 +161,7 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 			go utils.SendMessage(1, msgEvent.TargetId, "二维码登陆，功能已经加入开发队列", msgEvent.MsgId, "", "")
 			//存储当前服务器的登陆状态
 		}
+
 		//当前bot的状态 播放音乐？当前播放的进度条？下一首预告？
 		//当前bot的状态 播放音乐？当前播放的进度条？下一首预告？结束
 
@@ -276,6 +278,29 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 			//添加音乐并自动创建播放列表
 			//将歌曲添加至频道列表结束
 
+		}
+		if msgEvent.Content == "/重连" {
+			//获取登陆api
+			//判断数据是否为空
+			cid, err := kook.GetChannelId(msgEvent.GuildID, msgEvent.AuthorId)
+			if err != nil {
+				return err
+			} else if cid == "" {
+				utils.SendMessage(1, msgEvent.TargetId, "当前您未处在任何语音频道中！！！", msgEvent.MsgId, "", "")
+			} else {
+				//player := kook.VoiceInstance{
+				//	Token:     conf.Token,
+				//	ChannelId: cid,
+				//}
+				go utils.SendMessage(1, msgEvent.TargetId, "正在执行", msgEvent.MsgId, "", "")
+				//存储当前服务器的登陆状态
+				err := os.Remove("stream" + cid)
+				if err != nil {
+					return err
+				}
+				kook.Status.Delete(cid)
+				kook.Play(msgEvent.GuildID, cid, msgEvent.AuthorId)
+			}
 		}
 		//处理网易云音乐结束
 		//列出播放列表

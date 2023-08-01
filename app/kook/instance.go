@@ -3,13 +3,12 @@ package kook
 import (
 	"errors"
 	"fmt"
+	"github.com/gorilla/websocket"
 	"github.com/x1a2h1/kookvoice"
 	"os"
 	"os/exec"
 	"syscall"
 	"time"
-
-	"github.com/gorilla/websocket"
 )
 
 type VoiceInstance struct {
@@ -92,12 +91,16 @@ func (i *VoiceInstance) Init() error {
 
 	return nil
 }
-
 func (i *VoiceInstance) PlayMusic(input string) error {
 	time.Sleep(500 * time.Millisecond)
 	if err := syscall.Kill(-i.sourceProcess.Pid, syscall.SIGKILL); err != nil {
 		return errors.New(fmt.Sprintf("无法终止源进程, err: %v", err))
 	}
+	//if i.sourceProcess != nil {
+	//	if err := syscall.Kill(-i.sourceProcess.Pid, syscall.SIGKILL); err != nil {
+	//		return errors.New(fmt.Sprintf("终止音频源出错:%v", err))
+	//	}
+	//}
 
 	musicSourceCmd := exec.Command(
 		"bash",
