@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/kaiheila/golang-bot/api/helper"
 	log "github.com/sirupsen/logrus"
+	"github.com/x1a2h1/kookvoice"
 	"sync"
 )
 
@@ -169,18 +170,24 @@ func Play(gid string, cid string, uid string) error {
 		var playlist model.Playlist
 		conf.DB.Preload("Songs").Find(&playlist, gid)
 		go func() {
-			client, err := NewClient(conf.Token, cid)
-			if err != nil {
-				return
-			}
-			defer client.Close()
+			//client, err := NewClient(conf.Token, cid)
+			//if err != nil {
+			//	return
+			//}
+			//defer client.Close()
 			//defer client.wsConnect.Close()
 			for {
-				client.Init()
+				//client.Init()
+
 				songInfo := getMusic(gid)
 				if songInfo.ID == 0 {
 					break
 				}
+				gatewayUrl := kookvoice.GetGatewayUrl(conf.Token, cid)
+				connect, rtpUrl := kookvoice.InitWebsocketClient(gatewayUrl)
+				defer connect.Close()
+				go kookvoice.KeepWebsocketClientAlive(connect)
+				go kookvoice.KeepRecieveMessage(connect)
 				CurrentSong.Store(gid, SongData{
 					GuildID:  gid,
 					Singer:   songInfo.Singer,
@@ -195,12 +202,13 @@ func Play(gid string, cid string, uid string) error {
 					log.Error("获取音乐url失败")
 					break
 				}
+				kookvoice.StreamAudio(rtpUrl, url)
 				conf.DB.Debug().Delete(&songInfo, songInfo.ID)
-				err := client.PlayMusic(url)
-				if err != nil {
-					log.Error("\n当前播放歌曲存在异常！", err)
-					break
-				}
+				//err := client.PlayMusic(url)
+				//if err != nil {
+				//	log.Error("\n当前播放歌曲存在异常！", err)
+				//	break
+				//}
 				fmt.Println("当前歌曲："+songInfo.Name+"，总用时：", times)
 			}
 			CurrentSong.Delete(gid)

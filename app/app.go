@@ -76,48 +76,6 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 		}
 
 		//开启多线程
-		//开启多线程结束https://kook.top/x2eAZA
-		LinkUrl := "https://kook.top/x2eAZA"
-		helpCard := model.CardMessageCard{
-			Theme: "none",
-			Size:  model.CardSizeLg,
-			Modules: []interface{}{
-				&model.CardMessageHeader{Text: model.CardMessageElementText{
-					Content: "🌈帮助菜单",
-					Emoji:   true,
-				}},
-				&model.CardMessageDivider{},
-
-				&model.CardMessageSection{
-					Text: model.CardMessageParagraph{
-						Cols: 3,
-						Fields: []interface{}{
-							model.CardMessageElementKMarkdown{Content: "**指令**\n(font)/网易 { 歌曲名 } (font)[error]\n/帮助\n/状态"},
-							model.CardMessageElementKMarkdown{Content: "**功能**\n(font)播放网易云音乐(font)[success]\n帮助菜单\n当前机器人状态"},
-							model.CardMessageElementKMarkdown{Content: "**示例**\n/网易 乐鼓 (dj版)\n/帮助\n/状态"},
-						},
-					},
-				},
-				&model.CardMessageInvite{
-					Code: LinkUrl,
-				},
-				&model.CardMessageDivider{},
-				&model.CardMessageContext{
-					&model.CardMessageElementText{Content: "当前频道id：" + msgEvent.TargetId + "\n"},
-					&model.CardMessageElementText{Content: "当前频道名：" + msgEvent.ChannelName + "\n"},
-					&model.CardMessageElementText{Content: "当前频道服务器ID：" + msgEvent.GuildID + "\n"},
-				},
-				&model.CardMessageSection{
-					Text: model.CardMessageElementKMarkdown{Content: "Version:" + "`" + conf.Version + "` 问题反馈(met)1260041158(met)"},
-				},
-			},
-		}
-		helpCardMsg, err := model.CardMessage{&helpCard}.BuildMessage()
-		if err != nil {
-			log.Error("编译信息时出错！", err)
-		}
-		fmt.Println(helpCardMsg)
-
 		//InviteCard := model.CardMessage{
 		//	&model.CardMessageCard{
 		//		Theme: "",
@@ -135,6 +93,45 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 		//}.MustBuildMessage()
 
 		if msgEvent.Content == "/帮助" {
+			LinkUrl := "https://kook.top/x2eAZA"
+			helpCard := model.CardMessageCard{
+				Theme: "none",
+				Size:  model.CardSizeLg,
+				Modules: []interface{}{
+					&model.CardMessageHeader{Text: model.CardMessageElementText{
+						Content: "🌈帮助菜单",
+						Emoji:   true,
+					}},
+					&model.CardMessageDivider{},
+
+					&model.CardMessageSection{
+						Text: model.CardMessageParagraph{
+							Cols: 3,
+							Fields: []interface{}{
+								model.CardMessageElementKMarkdown{Content: "**指令**\n(font)/网易 { 歌曲名 } (font)[error]\n/帮助\n/状态"},
+								model.CardMessageElementKMarkdown{Content: "**功能**\n(font)播放网易云音乐(font)[success]\n帮助菜单\n当前机器人状态"},
+								model.CardMessageElementKMarkdown{Content: "**示例**\n/网易 乐鼓 (dj版)\n/帮助\n/状态"},
+							},
+						},
+					},
+					&model.CardMessageInvite{
+						Code: LinkUrl,
+					},
+					&model.CardMessageDivider{},
+					&model.CardMessageContext{
+						&model.CardMessageElementText{Content: "当前频道id：" + msgEvent.TargetId + "\n"},
+						&model.CardMessageElementText{Content: "当前频道名：" + msgEvent.ChannelName + "\n"},
+						&model.CardMessageElementText{Content: "当前频道服务器ID：" + msgEvent.GuildID + "\n"},
+					},
+					&model.CardMessageSection{
+						Text: model.CardMessageElementKMarkdown{Content: "Version:" + "`" + conf.Version + "` 问题反馈(met)1260041158(met)"},
+					},
+				},
+			}
+			helpCardMsg, err := model.CardMessage{&helpCard}.BuildMessage()
+			if err != nil {
+				log.Error("编译信息时出错！", err)
+			}
 			go utils.SendMessage(10, msgEvent.TargetId, helpCardMsg, msgEvent.MsgId, "", "")
 			//go utils.SendMessage(10, msgEvent.TargetId, InviteCard, "", "", "")
 
@@ -177,7 +174,13 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 			match := re.FindStringSubmatch(msgEvent.KMarkdown.RawContent)
 			receiveSongName := ""
 			if len(match) > 0 {
-				receiveSongName = match[1]
+				link := regexp.MustCompile(`https?://`)
+				if link.MatchString(match[1]) {
+					utils.SendMessage(1, msgEvent.TargetId, "链接点歌，导入歌单已在开发当中！", "", "", "")
+					return nil
+				} else {
+					receiveSongName = match[1]
+				}
 			} else {
 				utils.SendMessage(1, msgEvent.TargetId, "客官，关键词有误", "", "", "")
 				return err
