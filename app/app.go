@@ -3,6 +3,7 @@ package app
 import (
 	"botserver/app/kook"
 	"botserver/app/model"
+	"botserver/app/netease"
 	_ "botserver/app/redis"
 	"botserver/app/song"
 	"botserver/conf"
@@ -139,19 +140,6 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 		if msgEvent.Content == "/切歌" {
 			go utils.SendMessage(1, msgEvent.TargetId, "功能已经加入待开发队列", msgEvent.MsgId, "", "")
 		}
-		if strings.HasPrefix(msgEvent.Content, "/playlist") {
-			re := regexp.MustCompile(`/\w+ (\d+)`)
-
-			match := re.FindStringSubmatch(msgEvent.Content)
-			listId := ""
-			if len(match) > 1 {
-				listId = match[1]
-				go song.GetListAllSongs(listId, msgEvent.GuildID, msgEvent.TargetId, msgEvent.AuthorId, msgEvent.Author.Username)
-			} else {
-				fmt.Println("播放列表id获取有误！")
-			}
-		}
-
 		if msgEvent.Content == "/登录" {
 			//获取登陆api
 			//判断数据是否为空
@@ -169,39 +157,56 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 			utils.SendMessage(1, msgEvent.TargetId, getlink, "", "", "")
 		}
 		//处理网易云音乐
-		if strings.HasPrefix(msgEvent.KMarkdown.RawContent, "/网易") {
-			re := regexp.MustCompile(`/网易 (.*)`)
-			match := re.FindStringSubmatch(msgEvent.KMarkdown.RawContent)
+		if strings.HasPrefix(msgEvent.Content, "/网易") || strings.HasPrefix(msgEvent.Content, "/wy") {
+			re := regexp.MustCompile(`/(网易|wy) (.*)`)
+			match := re.FindStringSubmatch(msgEvent.Content)
 			receiveSongName := ""
+			songId := ""
 			if len(match) > 0 {
 				link := regexp.MustCompile(`https?://`)
-				if link.MatchString(match[1]) {
-					utils.SendMessage(1, msgEvent.TargetId, "链接点歌，导入歌单已在开发当中！", "", "", "")
-					return nil
+				if link.MatchString(match[2]) {
+					//将链接进行处理获取id
+					linkPattern := regexp.MustCompile(`(https?://[^\s\]]+)`)
+					linkMatch := linkPattern.FindStringSubmatch(match[2])
+					fullLink := linkMatch[1]
+					fmt.Println("link的值为：", fullLink)
+					params, id, err := netease.HandleLink(fullLink)
+					if err != nil {
+						log.Error("处理链接有误！", err)
+					}
+					fmt.Println("当前获取到的值为："+params, "id为：", id)
+					switch params {
+					case "playlist":
+						go song.GetListAllSongs(id, msgEvent.GuildID, msgEvent.TargetId, msgEvent.AuthorId, msgEvent.Author.Username)
+					case "song":
+						songId = id
+					default:
+						utils.SendMessage(1, msgEvent.TargetId, "链接有误！", "", "", "")
+					}
 				} else {
-					receiveSongName = match[1]
+					receiveSongName = match[2]
+					id, err := song.Search(receiveSongName)
+					if err != nil {
+						return err
+					}
+					songid := fmt.Sprintf("%d", id)
+					songId = songid
 				}
 			} else {
 				utils.SendMessage(1, msgEvent.TargetId, "客官，关键词有误", "", "", "")
 				return err
 			}
-
-			//判断用户发送的是手机版链接还是pc端
-			//linkData := regexp.MustCompile(`http://\w+.\w+/\w+`)
-			//getlink := linkData.FindString(receiveSongName)
-
 			//判断用户是否在语音内
+
 			//获取当前点歌的歌曲id
-			songId, songName, songSinger, songPic, err := song.Search(receiveSongName)
-			if err != nil {
-				return err
-			}
+			//songId, songName, songSinger, songPic, err := song.Search(receiveSongName)
+
 			//获取当前点歌的歌曲id结束
 			//获取歌曲详情
-			songInfo, err := song.MusicInfo(songId)
-			fmt.Println("403335371，获取到的歌曲详情：", "歌曲ID:", songId, songInfo, "歌曲名:", songName, "歌手:", songSinger, "专辑图片:", songPic)
+			songName, songSinger, songPic, dt, err := song.MusicInfo(songId)
+			fmt.Println("403335371，获取到的歌曲详情：", "歌曲ID:", songId, "歌曲名:", songName, "歌手:", songSinger, "专辑图片:", songPic, "歌曲时长", dt)
 			//获取歌曲详情结束
-			songid := fmt.Sprintf("%d", songId)
+			//songid := fmt.Sprintf("%d", songId)
 
 			//将获取歌曲播放url
 			//将获取歌曲播放url结束
@@ -213,12 +218,12 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 				return err
 			}
 			//创建数据库播放列表结束
-			//将歌曲信息传入channel
+			//将歌曲写入数据库
 			var playlist model.Playlist
 			err = conf.DB.First(&playlist, msgEvent.GuildID).Error
 			if err != nil {
 				conf.DB.Create(&model.Playlist{ID: msgEvent.GuildID, Songs: []model.Song{{
-					SongId:     songid,
+					SongId:     songId,
 					SongName:   songName,
 					SongSinger: songSinger,
 					CoverUrl:   songPic,
@@ -226,7 +231,7 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 					UserName:   msgEvent.Author.Username,
 				}}})
 			} else {
-				conf.DB.Create(&model.Song{SongId: songid,
+				conf.DB.Create(&model.Song{SongId: songId,
 					SongName:   songName,
 					CoverUrl:   songPic,
 					UserName:   msgEvent.Author.Username,
@@ -267,7 +272,7 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 							model.CardMessageElementImage{
 								Src: "https://img.kookapp.cn/assets/2023-07/aYf8cNg1hC05k05k.png",
 							},
-							model.CardMessageElementKMarkdown{Content: "[网易云](https://music.163.com/#/song?id=" + songid + ")"},
+							model.CardMessageElementKMarkdown{Content: "[网易云](https://music.163.com/#/song?id=" + songId + ")"},
 						},
 					},
 				}
@@ -318,12 +323,15 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 		}
 
 		if msgEvent.Content == "/状态" {
-
 			//err := kook.PlayForList(msgEvent.GuildID, msgEvent.TargetId)
 			//if err != nil {
 			//	return err
 			//}
 			//	当前服务器状态
+			var musicTotal int64
+			var songs model.Song
+			conf.DB.Debug().Model(&songs).Count(&musicTotal)
+			total := fmt.Sprintf("%d", musicTotal)
 			goinfo := runtime.NumGoroutine()
 			goroutineIfo := fmt.Sprintf("%d", goinfo)
 			MemPercent, _ := mem.VirtualMemory()
@@ -349,6 +357,7 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 								model.CardMessageElementKMarkdown{Content: "**CPU占用**\n" + CpuInfo},
 								model.CardMessageElementKMarkdown{Content: "**内存占用**\n" + MemInfo},
 								model.CardMessageElementKMarkdown{Content: "**线 程 数**\n " + goroutineIfo},
+								model.CardMessageElementKMarkdown{Content: "**总待播放**\n " + total + "首"},
 							},
 						},
 					},

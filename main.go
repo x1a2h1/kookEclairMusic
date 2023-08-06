@@ -31,12 +31,13 @@ func main() {
 }
 
 func sendBotOnline(uuid string) {
+	client := &http.Client{}
 	req, err := http.NewRequest("GET", "http://bot.gekj.net/api/v1/online.bot", nil)
 	if err != nil {
-		log.Error(err)
+		log.Error("机器人在线验证出现未知问题", err)
+		return
 	}
 	req.Header.Set("uuid", uuid)
-	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Error("发送请求错误:", err)
@@ -45,5 +46,5 @@ func sendBotOnline(uuid string) {
 	defer resp.Body.Close()
 
 	// 这里可以处理响应，例如打印 HTTP 状态码
-	log.Println("Response status:", resp.Status)
+	log.Println("请求状态:", resp.Body)
 }

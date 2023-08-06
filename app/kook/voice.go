@@ -169,7 +169,7 @@ func Play(gid string, cid string, uid string) error {
 
 		var playlist model.Playlist
 		conf.DB.Preload("Songs").Find(&playlist, gid)
-		go func() {
+		go func(GuildID string) {
 			//client, err := NewClient(conf.Token, cid)
 			//if err != nil {
 			//	return
@@ -179,7 +179,7 @@ func Play(gid string, cid string, uid string) error {
 			for {
 				//client.Init()
 
-				songInfo := getMusic(gid)
+				songInfo := getMusic(GuildID)
 				if songInfo.ID == 0 {
 					break
 				}
@@ -215,7 +215,7 @@ func Play(gid string, cid string, uid string) error {
 			fmt.Println(cid, "频道播放已结束")
 			Status.Delete(cid)
 			fmt.Println(cid, "频道播放已结束！进程退出成功！")
-		}()
+		}(gid)
 		//	goroutine结束后
 		fmt.Println("已经开启goroutine进行连接播放")
 	} else {
