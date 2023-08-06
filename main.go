@@ -20,8 +20,8 @@ func main() {
 	session.On("GROUP*", &app.GroupEventHandler{})
 	session.On("GROUP_9", &app.GroupTextEventHandler{Token: conf.Token, BaseUrl: conf.BaseUrl})
 	sendBotOnline(conf.OnlineUUID)
-	session.Start()
 	ticker := time.NewTicker(30 * time.Minute)
+	session.Start()
 	for {
 		select {
 		case <-ticker.C:
