@@ -86,7 +86,7 @@ type ListInfo struct {
 	} `json:"playlist"`
 }
 
-func GetListAllSongs(id string, gid string, targetId string, uid string, uname string) error {
+func GetListAllSongs(id string, gid string, targetId string, uid string, chanId string, uname string) error {
 	//获取歌单中所有歌曲
 	resp, err := http.Get(conf.NetEasy + "/playlist/detail?id=" + id)
 	if err != nil {

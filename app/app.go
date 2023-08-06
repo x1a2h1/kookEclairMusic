@@ -76,23 +76,6 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 			return nil
 		}
 
-		//开启多线程
-		//InviteCard := model.CardMessage{
-		//	&model.CardMessageCard{
-		//		Theme: "",
-		//		Modules: []interface{}{
-		//
-		//			&model.CardMessageHeader{Text: model.CardMessageElementText{
-		//				Content: LinkUrl,
-		//				Emoji:   false,
-		//			}},
-		//			&model.CardMessageInvite{
-		//				Code: LinkUrl,
-		//			},
-		//		},
-		//	},
-		//}.MustBuildMessage()
-
 		if msgEvent.Content == "/帮助" {
 			LinkUrl := "https://kook.top/x2eAZA"
 			helpCard := model.CardMessageCard{
@@ -106,14 +89,7 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 					&model.CardMessageDivider{},
 
 					&model.CardMessageSection{
-						Text: model.CardMessageParagraph{
-							Cols: 3,
-							Fields: []interface{}{
-								model.CardMessageElementKMarkdown{Content: "**指令**\n(font)/网易 { 歌曲名 } (font)[error]\n/帮助\n/状态"},
-								model.CardMessageElementKMarkdown{Content: "**功能**\n(font)播放网易云音乐(font)[success]\n帮助菜单\n当前机器人状态"},
-								model.CardMessageElementKMarkdown{Content: "**示例**\n/网易 乐鼓 (dj版)\n/帮助\n/状态"},
-							},
-						},
+						Text: model.CardMessageElementKMarkdown{Content: "**(font)网易云(font)[pink]**\n> `/网易 value` or `/wy value` \n`value`为歌单链接、歌曲名、歌曲链接\n\n---\n**(font)其他指令(font)[purple]**\n> `/列表`:获取当前服务器播放列表。\r---"},
 					},
 					&model.CardMessageInvite{
 						Code: LinkUrl,
@@ -151,11 +127,6 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 		//当前bot的状态 播放音乐？当前播放的进度条？下一首预告？结束
 
 		//当前bot的播放list 播放列表，超过50条不可添加 按序号排列 可以输入/删除 [2]
-		if strings.HasPrefix(msgEvent.Content, "/link") {
-			linkData := regexp.MustCompile(`http://\w+.\w+/\w+`)
-			getlink := linkData.FindString(msgEvent.Content)
-			utils.SendMessage(1, msgEvent.TargetId, getlink, "", "", "")
-		}
 		//处理网易云音乐
 		if strings.HasPrefix(msgEvent.Content, "/网易") || strings.HasPrefix(msgEvent.Content, "/wy") {
 			re := regexp.MustCompile(`/(网易|wy) (.*)`)
@@ -177,7 +148,19 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 					fmt.Println("当前获取到的值为："+params, "id为：", id)
 					switch params {
 					case "playlist":
-						go song.GetListAllSongs(id, msgEvent.GuildID, msgEvent.TargetId, msgEvent.AuthorId, msgEvent.Author.Username)
+						cid, err := kook.GetChannelId(msgEvent.GuildID, msgEvent.AuthorId)
+						if err != nil || cid == "" {
+							utils.SendMessage(1, msgEvent.TargetId, "获取播放频道失败或您未处在任何语音频道！！", "", "", "")
+							break
+						}
+						go song.GetListAllSongs(id, msgEvent.GuildID, msgEvent.TargetId, msgEvent.AuthorId, cid, msgEvent.Author.Username)
+						_, ok := kook.Status.Load(msgEvent.GuildID)
+						if !ok {
+							err := kook.Play(msgEvent.GuildID, cid, msgEvent.AuthorId)
+							if err != nil {
+								return err
+							}
+						}
 					case "song":
 						songId = id
 					default:
@@ -218,36 +201,38 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 				return err
 			}
 			//创建数据库播放列表结束
-			//将歌曲写入数据库
-			var playlist model.Playlist
-			err = conf.DB.First(&playlist, msgEvent.GuildID).Error
-			if err != nil {
-				conf.DB.Create(&model.Playlist{ID: msgEvent.GuildID, Songs: []model.Song{{
-					SongId:     songId,
-					SongName:   songName,
-					SongSinger: songSinger,
-					CoverUrl:   songPic,
-					UserId:     msgEvent.AuthorId,
-					UserName:   msgEvent.Author.Username,
-				}}})
-			} else {
-				conf.DB.Create(&model.Song{SongId: songId,
-					SongName:   songName,
-					CoverUrl:   songPic,
-					UserName:   msgEvent.Author.Username,
-					SongSinger: songSinger,
-					UserId:     msgEvent.AuthorId,
-					PlaylistID: msgEvent.GuildID,
-				})
-			}
+
 			cid, err := kook.GetChannelId(msgEvent.GuildID, msgEvent.AuthorId)
 			if err != nil {
 				return err
 			} else if cid == "" {
 				utils.SendMessage(1, msgEvent.TargetId, "当前您未处在任何语音频道中！！！", msgEvent.MsgId, "", "")
 			} else {
+				//将歌曲写入数据库
+				var playlist model.Playlist
+				err = conf.DB.First(&playlist, msgEvent.GuildID).Error
+				if err != nil {
+					conf.DB.Create(&model.Playlist{ID: msgEvent.GuildID, Songs: []model.Song{{
+						SongId:     songId,
+						SongName:   songName,
+						SongSinger: songSinger,
+						CoverUrl:   songPic,
+						UserId:     msgEvent.AuthorId,
+						UserName:   msgEvent.Author.Username,
+					}}})
+				} else {
+					conf.DB.Create(&model.Song{SongId: songId,
+						SongName:   songName,
+						CoverUrl:   songPic,
+						UserName:   msgEvent.Author.Username,
+						SongSinger: songSinger,
+						UserId:     msgEvent.AuthorId,
+						PlaylistID: msgEvent.GuildID,
+					})
+				}
+				//进行播放
 				kook.Play(msgEvent.GuildID, cid, msgEvent.AuthorId)
-
+				//发送卡片
 				MusicCard := model.CardMessageCard{
 					Theme: model.CardThemeWarning,
 					Size:  model.CardSizeLg,

@@ -162,11 +162,10 @@ func Play(gid string, cid string, uid string) error {
 	// 通过cid channel ID创建播放
 	//判断当前传进来的id是否活跃状态
 	//判断当前频道id是否已经创建了持久化进程
-	isPlay, ok := Status.Load(cid)
+	isPlay, ok := Status.Load(gid)
 	if !ok {
 		fmt.Println(isPlay)
-		Status.Store(cid, true)
-
+		Status.Store(gid, true)
 		var playlist model.Playlist
 		conf.DB.Preload("Songs").Find(&playlist, gid)
 		go func(GuildID string) {
@@ -178,7 +177,6 @@ func Play(gid string, cid string, uid string) error {
 			//defer client.wsConnect.Close()
 			for {
 				//client.Init()
-
 				songInfo := getMusic(GuildID)
 				if songInfo.ID == 0 {
 					break
@@ -189,7 +187,7 @@ func Play(gid string, cid string, uid string) error {
 				go kookvoice.KeepWebsocketClientAlive(connect)
 				go kookvoice.KeepRecieveMessage(connect)
 				CurrentSong.Store(gid, SongData{
-					GuildID:  gid,
+					GuildID:  GuildID,
 					Singer:   songInfo.Singer,
 					SongName: songInfo.Name,
 					UserName: songInfo.UserName,
@@ -200,10 +198,12 @@ func Play(gid string, cid string, uid string) error {
 				fmt.Println("当前播放的音乐url为", url, "当前播放时长为", times)
 				if url == "" || times == 0 {
 					log.Error("获取音乐url失败")
+					conf.DB.Debug().Delete(&songInfo, songInfo.ID)
 					break
 				}
-				kookvoice.StreamAudio(rtpUrl, url)
 				conf.DB.Debug().Delete(&songInfo, songInfo.ID)
+				kookvoice.StreamAudio(rtpUrl, url)
+				//conf.DB.Debug().Delete(&songInfo, songInfo.ID)
 				//err := client.PlayMusic(url)
 				//if err != nil {
 				//	log.Error("\n当前播放歌曲存在异常！", err)
@@ -213,7 +213,7 @@ func Play(gid string, cid string, uid string) error {
 			}
 			CurrentSong.Delete(gid)
 			fmt.Println(cid, "频道播放已结束")
-			Status.Delete(cid)
+			Status.Delete(gid)
 			fmt.Println(cid, "频道播放已结束！进程退出成功！")
 		}(gid)
 		//	goroutine结束后
@@ -221,7 +221,6 @@ func Play(gid string, cid string, uid string) error {
 	} else {
 		fmt.Println("当前频道" + cid + "播放列表正在播放")
 	}
-
 	return nil
 }
 
