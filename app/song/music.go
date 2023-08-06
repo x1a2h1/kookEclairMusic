@@ -88,7 +88,7 @@ type ListInfo struct {
 
 func GetListAllSongs(id string, gid string, targetId string, uid string, chanId string, uname string) error {
 	//获取歌单中所有歌曲
-	resp, err := http.Get(conf.NetEasy + "/playlist/detail?id=" + id)
+	resp, err := http.Get(conf.NetEasy + "/playlist/track/all?id=" + id + "&limit=50")
 	if err != nil {
 		return err
 	}
@@ -97,13 +97,13 @@ func GetListAllSongs(id string, gid string, targetId string, uid string, chanId 
 		return err
 
 	}
-	var res ListInfo
+	var res model.ListInfo
 	err = json.Unmarshal(body, &res)
 
-	SongTotal := fmt.Sprintf("%d", len(res.Playlist.Tracks))
+	SongTotal := fmt.Sprintf("%d", len(res.Songs))
 
 	//写入数据库
-	for _, songItem := range res.Playlist.Tracks {
+	for _, songItem := range res.Songs {
 		songId := fmt.Sprintf("%d", songItem.Id)
 		conf.DB.Create(&model.Song{
 			SongId:     songId,
@@ -115,9 +115,6 @@ func GetListAllSongs(id string, gid string, targetId string, uid string, chanId 
 			PlaylistID: gid,
 		})
 	}
-	//cid, err := kook.GetChannelId(gid, uid)
-	//kook.Play(gid, "3970172859382929", uid)
-
 	//发送卡片
 	listCard := model.CardMessageCard{
 		Theme: model.CardThemeSuccess,
@@ -130,20 +127,28 @@ func GetListAllSongs(id string, gid string, targetId string, uid string, chanId 
 		},
 	}
 
-	for _, item := range res.Playlist.Tracks {
+	for index, item := range res.Songs {
+		if index > 10 {
+			break
+		}
 		listCard.AddModule(
 			&model.CardMessageSection{
 				Mode: "left",
 				Text: model.CardMessageElementKMarkdown{
 					Content: "> " + item.Name + "\n> " + item.Ar[0].Name,
 				},
-				//Accessory: &model.CardMessageElementImage{
-				//	Src:  item.Al.PicUrl,
-				//	Size: "lg",
-				//},
+				Accessory: &model.CardMessageElementImage{
+					Src:  item.Al.PicUrl,
+					Size: "sm",
+				},
 			},
+			&model.CardMessageDivider{},
 		)
 	}
+	listCard.AddModule(
+		&model.CardMessageSection{Text: model.CardMessageElementText{Content: "当前卡片仅展示10条数据"}},
+	)
+
 	sendMsg, err := model.CardMessage{&listCard}.BuildMessage()
 	if err != nil {
 		return err
@@ -152,6 +157,6 @@ func GetListAllSongs(id string, gid string, targetId string, uid string, chanId 
 	if err != nil {
 		return err
 	}
-	fmt.Println(gid, "当前歌单的数据为", res.Playlist)
+	fmt.Println(gid, "当前歌单的数据为", res.Songs)
 	return err
 }

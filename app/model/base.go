@@ -5,6 +5,21 @@ type Playlist struct {
 	Songs []Song
 }
 
+type ListInfo struct {
+	Songs []struct {
+		Name string `json:"name"`
+		Id   int    `json:"id"`
+		Ar   []struct {
+			Name string `json:"name"`
+		} `json:"ar"`
+		Al struct {
+			PicUrl string `json:"picUrl"`
+		} `json:"al"`
+		Dt int `json:"dt"`
+	} `json:"songs"`
+	Code int `json:"code"`
+}
+
 type Song struct {
 	ID         int    //自增id
 	SongId     string //歌曲id

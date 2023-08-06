@@ -89,7 +89,7 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 					&model.CardMessageDivider{},
 
 					&model.CardMessageSection{
-						Text: model.CardMessageElementKMarkdown{Content: "**(font)网易云(font)[pink]**\n> `/网易 value` or `/wy value` \n`value`为歌单链接、歌曲名、歌曲链接\n\n---\n**(font)其他指令(font)[purple]**\n> `/列表`:获取当前服务器播放列表。\r---"},
+						Text: model.CardMessageElementKMarkdown{Content: "**(font)网易云(font)[pink]**\n> `/网易 value` or `/wy value` \n`value`为歌单链接、歌曲名、歌曲链接\n(spl)歌单链接默认导入0-50首(spl)\n\n---\n**(font)其他指令(font)[purple]**\n> `/列表`:获取当前服务器播放列表。\n\n---"},
 					},
 					&model.CardMessageInvite{
 						Code: LinkUrl,
@@ -154,6 +154,7 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 							break
 						}
 						go song.GetListAllSongs(id, msgEvent.GuildID, msgEvent.TargetId, msgEvent.AuthorId, cid, msgEvent.Author.Username)
+						time.Sleep(time.Second)
 						_, ok := kook.Status.Load(msgEvent.GuildID)
 						if !ok {
 							err := kook.Play(msgEvent.GuildID, cid, msgEvent.AuthorId)
@@ -161,6 +162,7 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 								return err
 							}
 						}
+						return nil
 					case "song":
 						songId = id
 					default:

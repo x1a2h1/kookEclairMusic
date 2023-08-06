@@ -79,7 +79,10 @@ func PlayForList(gid string, targerId string) error {
 			&model.CardMessageDivider{},
 		},
 	}
-	for _, item := range playlist.Songs {
+	for index, item := range playlist.Songs {
+		if index > 20 {
+			break
+		}
 		listMsg.AddModule(
 			&model.CardMessageSection{
 				Mode: model.CardMessageSectionModeLeft,
@@ -92,6 +95,9 @@ func PlayForList(gid string, targerId string) error {
 				},
 			})
 	}
+	listMsg.AddModule(
+		&model.CardMessageSection{Text: model.CardMessageElementText{Content: "当前卡片仅展示20首歌曲"}},
+	)
 	sendMsg, err := model.CardMessage{&listMsg}.BuildMessage()
 	if err != nil {
 		return err
