@@ -192,6 +192,7 @@ func GetMusicUrl(id string) (string, int) {
 	resp, err := http.Get(conf.NetEasy + "/song/url/v1?id=" + id + "&level=exhigh")
 	if err != nil {
 		log.Error("403335371获取音乐url出现错误！", err)
+		return "", 0
 	}
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()
@@ -212,7 +213,12 @@ func GetMusicUrl(id string) (string, int) {
 	if len(res.Data) != 0 {
 		songUrl := res.Data[0].Url
 		time := res.Data[0].Time
-		return songUrl, time
+		client, err := http.Head(songUrl)
+		if err != nil {
+			return "", 0
+		} else if client.StatusCode == http.StatusOK {
+			return songUrl, time
+		}
 	}
 	return "", 0
 }

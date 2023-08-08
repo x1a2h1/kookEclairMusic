@@ -45,5 +45,4 @@ type MusicList struct {
 
 // 写入歌曲信息并创建播放列表
 func CreateList(gid string, mid string, name string, user string, cover string) {
-
 }

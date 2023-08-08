@@ -101,8 +101,12 @@ func GetListAllSongs(id string, gid string, targetId string, uid string, chanId 
 	err = json.Unmarshal(body, &res)
 
 	SongTotal := fmt.Sprintf("%d", len(res.Songs))
-
-	//写入数据库
+	var playlist model.Playlist
+	err = conf.DB.First(&playlist, gid).Error
+	if err != nil {
+		conf.DB.Create(&model.Playlist{ID: gid, Songs: []model.Song{{}}})
+	}
+	//写入数据库,判断当前服务id是否存在
 	for _, songItem := range res.Songs {
 		songId := fmt.Sprintf("%d", songItem.Id)
 		conf.DB.Create(&model.Song{

@@ -18,7 +18,6 @@ import (
 	"github.com/shirou/gopsutil/v3/mem"
 	log "github.com/sirupsen/logrus"
 	"github.com/x1a2h1/kookvoice"
-	"os"
 	"regexp"
 	"runtime"
 	"strings"
@@ -89,7 +88,7 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 					&model.CardMessageDivider{},
 
 					&model.CardMessageSection{
-						Text: model.CardMessageElementKMarkdown{Content: "**(font)网易云(font)[pink]**\n> `/网易 value` or `/wy value` \n`value`为歌单链接、歌曲名、歌曲链接\n(spl)歌单链接默认导入0-50首(spl)\n\n---\n**(font)其他指令(font)[purple]**\n> `/列表`:获取当前服务器播放列表。\n\n---"},
+						Text: model.CardMessageElementKMarkdown{Content: "**(font)网易云(font)[pink]**\n> `/网易 value` or `/wy value` \n`value`为歌单链接、歌曲名、歌曲链接\n(spl)歌单链接默认导入0-50首(spl)\n\n---\n**(font)其他指令(font)[purple]**\n> `/列表`:获取当前服务器播放列表。\n`/切歌`:播放下一首。\n`/退出`:退出并清空播放列表\n\n---"},
 					},
 					&model.CardMessageInvite{
 						Code: LinkUrl,
@@ -114,7 +113,38 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 
 		}
 		if msgEvent.Content == "/切歌" {
-			go utils.SendMessage(1, msgEvent.TargetId, "功能已经加入待开发队列", msgEvent.MsgId, "", "")
+			//终止goroutine
+			_, err := kook.GetChannelId(msgEvent.GuildID, msgEvent.AuthorId)
+			if err != nil {
+				go utils.SendMessage(1, msgEvent.TargetId, "!ok!", msgEvent.MsgId, "", "")
+				return err
+			} else {
+				_, ok := kook.Status.Load(msgEvent.GuildID)
+				if ok {
+					kook.Mu.Lock()
+					cmds, ok := kook.Cmds[msgEvent.GuildID]
+					kook.Mu.Unlock()
+					if ok && cmds != nil && cmds.Process != nil {
+						err := cmds.Process.Kill()
+						if err != nil {
+							log.Printf("Error while killing ffmpeg for %s: %v", msgEvent.GuildID, err)
+						}
+						go utils.SendMessage(1, msgEvent.TargetId, "ok!", msgEvent.MsgId, "", "")
+					} else {
+						log.Error("当前服务器没有ffmpeg进程")
+					}
+					//	如果服务没有正在播放，判断当前歌单中是否存在歌曲
+					//var songList model.Song
+					//	如果
+				} else {
+					log.Error("当前频道没有在播放")
+				}
+			}
+			//kook.Player(msgEvent.GuildID, cid, msgEvent.AuthorId)
+			//根据服务器id 当前切歌用户id判断，当前服务器歌单中是否有该用户的歌曲，判断当前服务器播放拼
+			//判断当前服务器是否在播放 没有则返回，如果正在播放 终止当前的for
+
+			//go utils.SendMessage(1, msgEvent.TargetId, "功能已经加入待开发队列", msgEvent.MsgId, "", "")
 		}
 		if msgEvent.Content == "/登录" {
 			//获取登陆api
@@ -151,6 +181,11 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 						cid, err := kook.GetChannelId(msgEvent.GuildID, msgEvent.AuthorId)
 						if err != nil || cid == "" {
 							utils.SendMessage(1, msgEvent.TargetId, "获取播放频道失败或您未处在任何语音频道！！", "", "", "")
+							break
+						}
+						err = conf.DB.AutoMigrate(&model.Playlist{}, &model.Song{})
+						if err != nil {
+							return err
 							break
 						}
 						go song.GetListAllSongs(id, msgEvent.GuildID, msgEvent.TargetId, msgEvent.AuthorId, cid, msgEvent.Author.Username)
@@ -274,33 +309,62 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 			//将歌曲添加至频道列表结束
 
 		}
+		if msgEvent.Content == "/退出" || msgEvent.Content == "/quit" {
+			//判断当前用户是否在语音频道当中，在进行判断当前频道是否在播放
+			cid, err := kook.GetChannelId(msgEvent.GuildID, msgEvent.AuthorId)
+			if err != nil {
+				return err
+			} else if cid == "" {
+				utils.SendMessage(1, msgEvent.TargetId, "不可操作！！！", msgEvent.MsgId, "", "")
+				return err
+			}
+			_, ok := kook.Status.Load(msgEvent.GuildID)
+			if ok {
+				//	删数据并终止进程
+				conf.DB.Where("playlist_id = ?", msgEvent.GuildID).Delete(&model.Song{})
+				kook.Mu.Lock()
+				cmds, ok := kook.Cmds[msgEvent.GuildID]
+				kook.Mu.Unlock()
+				if ok && cmds != nil && cmds.Process != nil {
+					err := cmds.Process.Kill()
+					if err != nil {
+						log.Printf("Error while killing ffmpeg for %s: %v", msgEvent.GuildID, err)
+					}
+					go utils.SendMessage(1, msgEvent.TargetId, "ok!", msgEvent.MsgId, "", "")
+				}
+			}
+		}
 		if msgEvent.Content == "/重连" {
-			//获取登陆api
-			//判断数据是否为空
+			//判断当前服务器status是否为true
+			//如果ok，关闭当前服务器goroutine
+			// ！ok 判断当前服务器列表是否为空，不为空进行重连
 			cid, err := kook.GetChannelId(msgEvent.GuildID, msgEvent.AuthorId)
 			if err != nil {
 				return err
 			} else if cid == "" {
 				utils.SendMessage(1, msgEvent.TargetId, "当前您未处在任何语音频道中！！！", msgEvent.MsgId, "", "")
 			} else {
-				//player := kook.VoiceInstance{
-				//	Token:     conf.Token,
-				//	ChannelId: cid,
-				//}
-				go utils.SendMessage(1, msgEvent.TargetId, "正在执行", msgEvent.MsgId, "", "")
-				//存储当前服务器的登陆状态
-				err := os.Remove("stream" + cid)
-				if err != nil {
-					return err
+				_, ok := kook.Status.Load(msgEvent.GuildID)
+				if !ok {
+					err := kook.Play(msgEvent.GuildID, cid, msgEvent.AuthorId)
+					if err != nil {
+						return err
+					}
+				} else {
+
 				}
-				kook.Status.Delete(cid)
-				kook.Play(msgEvent.GuildID, cid, msgEvent.AuthorId)
+				go utils.SendMessage(1, msgEvent.TargetId, "ok!", msgEvent.MsgId, "", "")
+				//存储当前服务器的登陆状态
+				//err := os.Remove("stream" + cid)
+				//if err != nil {
+				//	return err
+				//}
+				//kook.Status.Delete(msgEvent.GuildID)
 			}
 		}
 		//处理网易云音乐结束
 		//列出播放列表
 		if msgEvent.Content == "/列表" {
-
 			//	查询当前频道的播放列表
 			err := kook.PlayForList(msgEvent.GuildID, msgEvent.TargetId)
 			if err != nil {
@@ -315,6 +379,18 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 			//	return err
 			//}
 			//	当前服务器状态
+			C := 0
+			kook.Status.Range(func(key, value any) bool {
+				C++
+				return true
+			})
+			CPlaying := ""
+			if C == 0 {
+				CPlaying = "无"
+			} else {
+				CPlaying = fmt.Sprintf("(font)%d(font)[warning] 个频道", C)
+			}
+			totalPlay := fmt.Sprintf("(font)%d(font)[warning]首", kook.TotalPlay)
 			var musicTotal int64
 			var songs model.Song
 			conf.DB.Debug().Model(&songs).Count(&musicTotal)
@@ -322,9 +398,28 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 			goinfo := runtime.NumGoroutine()
 			goroutineIfo := fmt.Sprintf("%d", goinfo)
 			MemPercent, _ := mem.VirtualMemory()
-			MemInfo := fmt.Sprintf("%.2f%%", MemPercent.UsedPercent)
+			MemInfo := ""
+			if MemPercent.UsedPercent < 40 {
+				MemInfo = fmt.Sprintf("(font)%.2f%%(font)[success]", MemPercent.UsedPercent)
+			} else if MemPercent.UsedPercent < 60 {
+				MemInfo = fmt.Sprintf("(font)%.2f%%(font)[primary]", MemPercent.UsedPercent)
+			} else if MemPercent.UsedPercent < 80 {
+				MemInfo = fmt.Sprintf("(font)%.2f%%(font)[warning]", MemPercent.UsedPercent)
+			} else {
+				MemInfo = fmt.Sprintf("(font)%.2f%%(font)[danger]", MemPercent.UsedPercent)
+			}
 			percent, _ := cpu.Percent(time.Second, false)
-			CpuInfo := fmt.Sprintf("%.2f%%", percent[0])
+			CpuInfo := ""
+			if percent[0] < 40 {
+				CpuInfo = fmt.Sprintf("(font)%.2f%%(font)[success]", percent[0])
+			} else if percent[0] < 60 {
+				CpuInfo = fmt.Sprintf("(font)%.2f%%(font)[primary]", percent[0])
+			} else if percent[0] < 80 {
+				CpuInfo = fmt.Sprintf("(font)%.2f%%(font)[warning]", percent[0])
+			} else {
+				CpuInfo = fmt.Sprintf("(font)%.2f%%(font)[danger]", percent[0])
+			}
+
 			cardData := model.CardMessageCard{
 				Theme: model.CardThemeSecondary,
 				Color: "",
@@ -343,8 +438,10 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 							Fields: []interface{}{
 								model.CardMessageElementKMarkdown{Content: "**CPU占用**\n" + CpuInfo},
 								model.CardMessageElementKMarkdown{Content: "**内存占用**\n" + MemInfo},
-								model.CardMessageElementKMarkdown{Content: "**线 程 数**\n " + goroutineIfo},
-								model.CardMessageElementKMarkdown{Content: "**总待播放**\n " + total + "首"},
+								model.CardMessageElementKMarkdown{Content: "**其  他**\n (font)" + goroutineIfo + "(font)[purple]"},
+								model.CardMessageElementKMarkdown{Content: "**待 播 放**\n (font)" + total + "(font)[warning]首"},
+								model.CardMessageElementKMarkdown{Content: "**正在服务**\n " + CPlaying},
+								model.CardMessageElementKMarkdown{Content: "**总 播 放**\n " + totalPlay},
 							},
 						},
 					},

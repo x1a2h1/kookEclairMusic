@@ -10,7 +10,9 @@ import (
 	"github.com/kaiheila/golang-bot/api/helper"
 	log "github.com/sirupsen/logrus"
 	"github.com/x1a2h1/kookvoice"
+	"os/exec"
 	"sync"
+	"sync/atomic"
 )
 
 func init() {
@@ -163,6 +165,9 @@ func NewClient(token string, channelId string) (*VoiceInstance, error) {
 }
 
 var Status sync.Map
+var Cmds = make(map[string]*exec.Cmd)
+var Mu sync.Mutex
+var TotalPlay int32
 
 func Play(gid string, cid string, uid string) error {
 	// 通过cid channel ID创建播放
@@ -175,16 +180,11 @@ func Play(gid string, cid string, uid string) error {
 		var playlist model.Playlist
 		conf.DB.Preload("Songs").Find(&playlist, gid)
 		go func(GuildID string) {
-			//client, err := NewClient(conf.Token, cid)
-			//if err != nil {
-			//	return
-			//}
-			//defer client.Close()
-			//defer client.wsConnect.Close()
+			//开始播放当前服务器列表歌曲
 			for {
-				//client.Init()
 				songInfo := getMusic(GuildID)
 				if songInfo.ID == 0 {
+					fmt.Println("当前服务器中已没有可播放歌曲\n")
 					break
 				}
 				gatewayUrl := kookvoice.GetGatewayUrl(conf.Token, cid)
@@ -199,36 +199,87 @@ func Play(gid string, cid string, uid string) error {
 					UserName: songInfo.UserName,
 					CoverUrl: songInfo.CoverUrl,
 				})
-				fmt.Println("当前正在播放歌曲", songInfo.SongID)
 				url, times := song.GetMusicUrl(songInfo.SongID)
 				fmt.Println("当前播放的音乐url为", url, "当前播放时长为", times)
+				conf.DB.Debug().Delete(&songInfo, songInfo.ID)
 				if url == "" || times == 0 {
 					log.Error("获取音乐url失败")
-					conf.DB.Debug().Delete(&songInfo, songInfo.ID)
-					break
+					continue
 				}
-				conf.DB.Debug().Delete(&songInfo, songInfo.ID)
-				kookvoice.StreamAudio(rtpUrl, url)
-				//conf.DB.Debug().Delete(&songInfo, songInfo.ID)
-				//err := client.PlayMusic(url)
-				//if err != nil {
-				//	log.Error("\n当前播放歌曲存在异常！", err)
-				//	break
-				//}
-				fmt.Println("当前歌曲："+songInfo.Name+"，总用时：", times)
+				//判断播放结束、时长为0，链接不存在关闭ffmpeg进程
+				fmt.Println("\n\n开始播放歌曲", songInfo.Name, "歌曲id", songInfo.SongID)
+				//kookvoice.StreamAudio(rtpUrl, url)
+
+				StreamAudio(gid, rtpUrl, url)
+				atomic.AddInt32(&TotalPlay, 1)
+				fmt.Println("歌曲："+songInfo.Name+"，总用时：", times, "\n\n>>>播放结束<<<")
 			}
 			CurrentSong.Delete(gid)
-			fmt.Println(cid, "频道播放已结束")
 			Status.Delete(gid)
 			fmt.Println(cid, "频道播放已结束！进程退出成功！")
 		}(gid)
 		//	goroutine结束后
 		fmt.Println("已经开启goroutine进行连接播放")
 	} else {
-		fmt.Println("当前频道" + cid + "播放列表正在播放")
+		fmt.Println("当前服务器" + gid + "播放列表正在播放，已将歌曲添加至列表")
 	}
 	return nil
 }
+
+//
+
+// 通过context控制播放，退出
+
+//func Player(gid string, cid string, uid string) {
+//	//查询当前服务器是否正在播放
+//	_, ok := Status.Load(gid)
+//	if ok {
+//		// 正在播放
+//		mu.Lock()
+//		delete(cmds, gid)
+//		Status.Delete(gid)
+//	} else {
+//		Status.Store(gid, true)
+//		var playlist model.Playlist
+//		conf.DB.Preload("Songs").Find(&playlist, gid)
+//		go func(GuildID string) {
+//			for {
+//				songInfo := getMusic(GuildID)
+//				if songInfo.ID == 0 {
+//					fmt.Println("当前服务器中已没有可播放歌曲\n")
+//					break
+//				}
+//				gatewayUrl := kookvoice.GetGatewayUrl(conf.Token, cid)
+//				connect, rtpUrl := kookvoice.InitWebsocketClient(gatewayUrl)
+//				defer connect.Close()
+//				go kookvoice.KeepWebsocketClientAlive(connect)
+//				go kookvoice.KeepRecieveMessage(connect)
+//				CurrentSong.Store(gid, SongData{
+//					GuildID:  GuildID,
+//					Singer:   songInfo.Singer,
+//					SongName: songInfo.Name,
+//					UserName: songInfo.UserName,
+//					CoverUrl: songInfo.CoverUrl,
+//				})
+//				url, times := song.GetMusicUrl(songInfo.SongID)
+//				fmt.Println("当前播放的音乐url为", url, "当前播放时长为", times)
+//				conf.DB.Debug().Delete(&songInfo, songInfo.ID)
+//				if url == "" || times == 0 {
+//					log.Error("获取音乐url失败")
+//					continue
+//				}
+//				//判断播放结束、时长为0，链接不存在关闭ffmpeg进程
+//				fmt.Println("\n\n开始播放歌曲", songInfo.Name, "歌曲id", songInfo.SongID)
+//				StreamAudio(GuildID, rtpUrl, url)
+//				//StreamAudio(rtpUrl, url)
+//				fmt.Println("歌曲："+songInfo.Name+"，总用时：", times, "\n\n>>>播放结束<<<")
+//			}
+//			CurrentSong.Delete(gid)
+//			Status.Delete(gid)
+//			fmt.Println(cid, "频道播放已结束！进程退出成功！")
+//		}(gid)
+//	}
+//}
 
 type Song struct {
 	ID       int
