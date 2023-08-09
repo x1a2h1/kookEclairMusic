@@ -171,21 +171,23 @@ func Search(keywords string) (int, error) {
 	}
 
 	SongSinger := ""
+	if len(result.Result.Songs) != 0 {
+		for i, name := range result.Result.Songs[0].Ar {
+			if i > 0 {
+				SongSinger += " / "
+			}
+			SongSinger += name.Name
+			fmt.Println("获取到的歌手名", i, "为：", name.Name)
 
-	for i, name := range result.Result.Songs[0].Ar {
-		if i > 0 {
-			SongSinger += " / "
 		}
-		SongSinger += name.Name
-		fmt.Println("获取到的歌手名", i, "为：", name.Name)
-
+		fmt.Println("获取到的歌手名为：", SongSinger)
+		//返回当前搜索第一条的id，歌曲名，歌手，专辑图片，
+		id := result.Result.Songs[0].Id
+		//SongName := result.Result.Songs[0].Name
+		//pic := result.Result.Songs[0].Al.PicUrl
+		return id, nil
 	}
-	fmt.Println("获取到的歌手名为：", SongSinger)
-	//返回当前搜索第一条的id，歌曲名，歌手，专辑图片，
-	id := result.Result.Songs[0].Id
-	//SongName := result.Result.Songs[0].Name
-	//pic := result.Result.Songs[0].Al.PicUrl
-	return id, nil
+	return 0, err
 }
 
 func GetMusicUrl(id string) (string, int) {

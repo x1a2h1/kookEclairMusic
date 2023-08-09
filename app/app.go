@@ -159,7 +159,7 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 		//当前bot的播放list 播放列表，超过50条不可添加 按序号排列 可以输入/删除 [2]
 		//处理网易云音乐
 		if strings.HasPrefix(msgEvent.Content, "/网易") || strings.HasPrefix(msgEvent.Content, "/wy") {
-			re := regexp.MustCompile(`/(网易|wy) (.*)`)
+			re := regexp.MustCompile(`/(网易|wy)\s+(.*)`)
 			match := re.FindStringSubmatch(msgEvent.Content)
 			receiveSongName := ""
 			songId := ""
@@ -205,12 +205,18 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 					}
 				} else {
 					receiveSongName = match[2]
-					id, err := song.Search(receiveSongName)
-					if err != nil {
+					if receiveSongName != "" {
+						id, err := song.Search(receiveSongName)
+						if err != nil || id == 0 {
+							return err
+						}
+						mid := fmt.Sprintf("%d", id)
+						songId = mid
+					} else {
+						utils.SendMessage(1, msgEvent.TargetId, "请输入关键词", "", "", "")
 						return err
 					}
-					songid := fmt.Sprintf("%d", id)
-					songId = songid
+
 				}
 			} else {
 				utils.SendMessage(1, msgEvent.TargetId, "客官，关键词有误", "", "", "")
