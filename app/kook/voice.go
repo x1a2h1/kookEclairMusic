@@ -2,9 +2,11 @@ package kook
 
 import (
 	model "botserver/app/model"
+	redisDB "botserver/app/redis"
 	"botserver/app/song"
 	"botserver/conf"
 	"botserver/pkg/utils"
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/kaiheila/golang-bot/api/helper"
@@ -211,6 +213,11 @@ func Play(gid string, cid string, uid string) error {
 				//kookvoice.StreamAudio(rtpUrl, url)
 
 				StreamAudio(gid, rtpUrl, url)
+				//播放结束，已播放数量加1
+				err := redisDB.Rdb.Incr(context.Background(), "totalPlayed").Err()
+				if err != nil {
+					continue
+				}
 				atomic.AddInt32(&TotalPlay, 1)
 				fmt.Println("歌曲："+songInfo.Name+"，总用时：", times, "\n\n>>>播放结束<<<")
 			}

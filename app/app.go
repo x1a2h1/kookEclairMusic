@@ -5,9 +5,11 @@ import (
 	"botserver/app/model"
 	"botserver/app/netease"
 	_ "botserver/app/redis"
+	redisDB "botserver/app/redis"
 	"botserver/app/song"
 	"botserver/conf"
 	"botserver/pkg/utils"
+	"context"
 	"errors"
 	"fmt"
 	"github.com/bytedance/sonic"
@@ -17,11 +19,9 @@ import (
 	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/mem"
 	log "github.com/sirupsen/logrus"
-	"github.com/x1a2h1/kookvoice"
 	"regexp"
 	"runtime"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -396,7 +396,10 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 			} else {
 				CPlaying = fmt.Sprintf("(font)%d(font)[warning] 个频道", C)
 			}
-			totalPlay := fmt.Sprintf("(font)%d(font)[warning]首", kook.TotalPlay)
+			totalPlay, err := redisDB.Rdb.Get(context.Background(), "totalPlayed").Result()
+			if err != nil {
+				totalPlay = "0"
+			}
 			var musicTotal int64
 			var songs model.Song
 			conf.DB.Debug().Model(&songs).Count(&musicTotal)
@@ -447,7 +450,7 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 								model.CardMessageElementKMarkdown{Content: "**其  他**\n (font)" + goroutineIfo + "(font)[purple]"},
 								model.CardMessageElementKMarkdown{Content: "**待 播 放**\n (font)" + total + "(font)[warning]首"},
 								model.CardMessageElementKMarkdown{Content: "**正在服务**\n " + CPlaying},
-								model.CardMessageElementKMarkdown{Content: "**总 播 放**\n " + totalPlay},
+								model.CardMessageElementKMarkdown{Content: "**已 播 放**\n (font)" + totalPlay + "(font)[warning]首"},
 							},
 						},
 					},
@@ -471,33 +474,4 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 }
 
 type PlayMusicHandler struct {
-}
-
-func (play *PlayMusicHandler) Handle(e event.Event) error {
-	log.WithField("event", e).Info("音乐播放事件···")
-	go func() {
-		//	判断服务器id
-		var playlist model.Playlist
-		conf.DB.Preload("Songs").Find(&playlist)
-		if len(playlist.Songs) > 0 {
-			var wg sync.WaitGroup
-			wg.Add(len(playlist.Songs))
-			for _, item := range playlist.Songs {
-				channelId, _ := kook.GetChannelId(item.PlaylistID, item.UserId)
-				gatewayUrl := kookvoice.GetGatewayUrl(conf.Token, channelId)
-				songUrl, times := song.GetMusicUrl(item.SongId)
-				connect, rtpUrl := kookvoice.InitWebsocketClient(gatewayUrl)
-				defer connect.Close()
-				go kookvoice.KeepWebsocketClientAlive(connect)
-				go kookvoice.KeepRecieveMessage(connect)
-				conf.DB.Debug().Where("id=?", item.ID).Delete(&playlist.Songs)
-				kookvoice.StreamAudio(rtpUrl, songUrl)
-				wg.Done()
-				fmt.Println(times)
-			}
-			wg.Wait()
-
-		}
-	}()
-	return nil
 }

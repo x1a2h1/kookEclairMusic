@@ -1,7 +1,7 @@
 package conf
 
 const (
-	Token      = ""
+	Token      = "1/MjEyMzY=/SGOT9Ul2nZ/8HdO+bYZTLQ=="
 	BaseUrl    = "https://www.kookapp.cn/api"
 	NetEasy    = "http://47.96.25.105:3000" //网易云的api
 	OnlineUUID = ""                         //BotMarket验证在线uuid
