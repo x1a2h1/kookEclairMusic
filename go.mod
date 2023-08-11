@@ -23,6 +23,7 @@ require (
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/lufia/plan9stats v0.0.0-20230326075908-cb1d2100619a // indirect
+	github.com/nareix/joy4 v0.0.0-20200507095837-05a4ffbb5369 // indirect
 	github.com/power-devops/perfstat v0.0.0-20221212215047-62379fc7944b // indirect
 	github.com/shoenig/go-m1cpu v0.1.6 // indirect
 	github.com/shuyangzhang/kookvoice v0.0.1 // indirect

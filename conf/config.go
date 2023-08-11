@@ -1,10 +1,11 @@
 package conf
 
+var Token = ""
+
 const (
-	Token      = "1/MjEyMzY=/SGOT9Ul2nZ/8HdO+bYZTLQ=="
 	BaseUrl    = "https://www.kookapp.cn/api"
 	NetEasy    = "http://47.96.25.105:3000" //网易云的api
-	OnlineUUID = ""                         //BotMarket验证在线uuid
+	OnlineUUID = ""                         //BotMarket验证在线uuid,可选
 	// HTTPServerIp HTTPServerPort  VerifyToken EncryptKey : WEBHOOK相关, 如果不是WEBHOOK,可不填
 	// HTTPServerIp 侦听的ip地址
 	HTTPServerIp = "0.0.0.0"
@@ -14,7 +15,7 @@ const (
 	VerifyToken = ""
 	// EncryptKey 若不需要加密，可不填。如果有encryptKey会更安全一点。
 	EncryptKey = ""
-	Version    = "v0.1.1-beta"
+	Version    = "v0.1.2-Alpha"
 	//数据库相关配置
 	Databese = "test"
 	Username = "x1a2h1"
@@ -22,3 +23,8 @@ const (
 	Password = "Qkxz1216"
 	//数据库相关配置结束
 )
+const envToken = ""
+
+//func init() {
+//	Token = os.Getenv("TOKEN")
+//}

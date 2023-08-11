@@ -9,9 +9,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/gorilla/websocket"
 	"github.com/kaiheila/golang-bot/api/helper"
+	"github.com/nareix/joy4/format/rtmp"
 	log "github.com/sirupsen/logrus"
 	"github.com/x1a2h1/kookvoice"
+	"os"
 	"os/exec"
 	"sync"
 	"sync/atomic"
@@ -184,11 +187,16 @@ func Play(gid string, cid string, uid string) error {
 		go func(GuildID string) {
 			//开始播放当前服务器列表歌曲
 			for {
+
 				songInfo := getMusic(GuildID)
 				if songInfo.ID == 0 {
 					fmt.Println("当前服务器中已没有可播放歌曲\n")
 					break
 				}
+				//TODO 获取当前语音频道id中的数据，如果没人就清空列表并break
+				//TODO 获取当前语音频道id中的数据，如果没人就break结束
+				//TODO 请求当前服务器的cid本地推流地址
+				//TODO 接收本地推流发送至kook官方地址
 				gatewayUrl := kookvoice.GetGatewayUrl(conf.Token, cid)
 				connect, rtpUrl := kookvoice.InitWebsocketClient(gatewayUrl)
 				defer connect.Close()
@@ -233,60 +241,37 @@ func Play(gid string, cid string, uid string) error {
 	return nil
 }
 
-//
+type voice struct {
+	Token         string
+	ChannelId     string
+	wsConnect     *websocket.Conn
+	streamProcess *os.Process
+	sourceProcess *os.Process
+}
 
-// 通过context控制播放，退出
+func (i *voice) Init() string {
+	gatewayUrl := kookvoice.GetGatewayUrl(i.Token, i.ChannelId)
+	connect, rtpUrl := kookvoice.InitWebsocketClient(gatewayUrl)
 
-//func Player(gid string, cid string, uid string) {
-//	//查询当前服务器是否正在播放
-//	_, ok := Status.Load(gid)
-//	if ok {
-//		// 正在播放
-//		mu.Lock()
-//		delete(cmds, gid)
-//		Status.Delete(gid)
-//	} else {
-//		Status.Store(gid, true)
-//		var playlist model.Playlist
-//		conf.DB.Preload("Songs").Find(&playlist, gid)
-//		go func(GuildID string) {
-//			for {
-//				songInfo := getMusic(GuildID)
-//				if songInfo.ID == 0 {
-//					fmt.Println("当前服务器中已没有可播放歌曲\n")
-//					break
-//				}
-//				gatewayUrl := kookvoice.GetGatewayUrl(conf.Token, cid)
-//				connect, rtpUrl := kookvoice.InitWebsocketClient(gatewayUrl)
-//				defer connect.Close()
-//				go kookvoice.KeepWebsocketClientAlive(connect)
-//				go kookvoice.KeepRecieveMessage(connect)
-//				CurrentSong.Store(gid, SongData{
-//					GuildID:  GuildID,
-//					Singer:   songInfo.Singer,
-//					SongName: songInfo.Name,
-//					UserName: songInfo.UserName,
-//					CoverUrl: songInfo.CoverUrl,
-//				})
-//				url, times := song.GetMusicUrl(songInfo.SongID)
-//				fmt.Println("当前播放的音乐url为", url, "当前播放时长为", times)
-//				conf.DB.Debug().Delete(&songInfo, songInfo.ID)
-//				if url == "" || times == 0 {
-//					log.Error("获取音乐url失败")
-//					continue
-//				}
-//				//判断播放结束、时长为0，链接不存在关闭ffmpeg进程
-//				fmt.Println("\n\n开始播放歌曲", songInfo.Name, "歌曲id", songInfo.SongID)
-//				StreamAudio(GuildID, rtpUrl, url)
-//				//StreamAudio(rtpUrl, url)
-//				fmt.Println("歌曲："+songInfo.Name+"，总用时：", times, "\n\n>>>播放结束<<<")
-//			}
-//			CurrentSong.Delete(gid)
-//			Status.Delete(gid)
-//			fmt.Println(cid, "频道播放已结束！进程退出成功！")
-//		}(gid)
-//	}
-//}
+	go kookvoice.KeepWebsocketClientAlive(connect)
+	go kookvoice.KeepRecieveMessage(connect)
+	i.wsConnect = connect
+	return rtpUrl
+}
+
+func localStream(gid string) {
+	//TODO 创建本地推流地址
+	server := &rtmp.Server{Addr: ":6324"}
+
+	server.HandlePublish = func(conn *rtmp.Conn) {
+		for {
+			songInfo := getMusic(gid)
+			if songInfo.ID == 0 {
+				break
+			}
+		}
+	}
+}
 
 type Song struct {
 	ID       int

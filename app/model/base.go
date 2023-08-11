@@ -42,6 +42,104 @@ type MusicList struct {
 	CoverUrl string //歌曲图片&专辑图片
 	Duration int
 }
+type GatewayResp struct {
+	Code    int             `json:"code"`
+	Message string          `json:"message"`
+	Data    gatewayRespData `json:"data"`
+}
+type gatewayRespData struct {
+	GatewayUrl string `json:"gateway_url"`
+}
+type FirstShakeReq struct {
+	Request bool              `json:"request"`
+	Id      int               `json:"id"`
+	Method  string            `json:"method"`
+	Data    firstShakeReqData `json:"data"`
+}
+type firstShakeReqData struct {
+}
+
+type SecondShakeReq struct {
+	Request bool               `json:"request"`
+	Id      int                `json:"id"`
+	Method  string             `json:"method"`
+	Data    SecondShakeReqData `json:"data"`
+}
+
+type SecondShakeReqData struct {
+	DisplayName string `json:"displayName"`
+}
+type BaseShakeReq struct {
+	Request bool   `json:"request"`
+	Id      int    `json:"id"`
+	Method  string `json:"method"`
+}
+
+type ThirdShakeReq struct {
+	Request bool              `json:"request"`
+	Id      int               `json:"id"`
+	Method  string            `json:"method"`
+	Data    ThirdShakeReqData `json:"data"`
+}
+
+type ThirdShakeReqData struct {
+	Comedia bool   `json:"comedia"`
+	RtcpMux bool   `json:"rtcpMux"`
+	Type    string `json:"type"`
+}
+
+type ThirdShakeResp struct {
+	Response bool `json:"response"`
+	Id       int  `json:"id"`
+	Ok       bool `json:"ok"`
+	Data     thirdShakeRespData
+}
+
+type thirdShakeRespData struct {
+	Id       string `json:"id"`
+	Ip       string `json:"ip"`
+	Port     int    `json:"port"`
+	RtcpPort int    `json:"rtcpPort"`
+}
+
+type FourthShakeReq struct {
+	Request bool               `json:"request"`
+	Id      int                `json:"id"`
+	Method  string             `json:"method"`
+	Data    FourthShakeReqData `json:"data"`
+}
+
+type FourthShakeReqData struct {
+	AppData       AppData       `json:"appData"`
+	Kind          string        `json:"kind"`
+	PeerId        string        `json:"peerId"`
+	RtpParameters RtpParameters `json:"rtpParameters"`
+	TransportId   string        `json:"transportId"`
+}
+
+type AppData struct {
+}
+
+type RtpParameters struct {
+	Codecs    []Codec    `json:"codecs"`
+	Encodings []Encoding `json:"encodings"`
+}
+
+type Codec struct {
+	Channels    int        `json:"channels"`
+	ClockRate   int        `json:"clockRate"`
+	MimeType    string     `json:"mimeType"`
+	Parameters  Parameters `json:"parameters"`
+	PayloadType int        `json:"payloadType"`
+}
+
+type Parameters struct {
+	SpropStereo int `json:"sprop-stereo"`
+}
+
+type Encoding struct {
+	Ssrc int `json:"ssrc"`
+}
 
 // 写入歌曲信息并创建播放列表
 func CreateList(gid string, mid string, name string, user string, cover string) {
