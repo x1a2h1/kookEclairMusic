@@ -15,7 +15,7 @@ const (
 	VerifyToken = ""
 	// EncryptKey 若不需要加密，可不填。如果有encryptKey会更安全一点。
 	EncryptKey = ""
-	Version    = "v0.1.2-Alpha"
+	Version    = "v0.1.3"
 	//数据库相关配置
 	Databese = "test"
 	Username = "x1a2h1"

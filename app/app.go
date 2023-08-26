@@ -165,7 +165,7 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 				return true
 			})
 			_, ok := kook.Status.Load(msgEvent.GuildID)
-			if C >= 4 && !ok {
+			if C >= 3 && !ok {
 				utils.SendMessage(9, msgEvent.TargetId, "播放队列已满，输入`/状态`查看服务状态", "", "", "")
 				return err
 			} else {
@@ -405,8 +405,10 @@ func (gte *GroupTextEventHandler) Handle(e event.Event) error {
 			CPlaying := ""
 			if C == 0 {
 				CPlaying = "无"
+			} else if C == 3 {
+				CPlaying = fmt.Sprintf("(font)已满[error](font)")
 			} else {
-				CPlaying = fmt.Sprintf("(font)%d(font)[warning]/4个频道", C)
+				CPlaying = fmt.Sprintf("(font)%d(font)[warning]/3个频道", C)
 			}
 			totalPlay, err := redisDB.Rdb.Get(context.Background(), "totalPlayed").Result()
 			if err != nil {
